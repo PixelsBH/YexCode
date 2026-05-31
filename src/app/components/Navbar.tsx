@@ -1,40 +1,64 @@
-import Link from 'next/link';
+import Link from "next/link";
 import {
   SignInButton,
   SignUpButton,
   SignedIn,
   SignedOut,
   UserButton,
-} from '@clerk/nextjs'
+} from "@clerk/nextjs";
 
-function Navbar (){
+function Navbar({ transparent = false }: { transparent?: boolean }) {
   return (
-    <header className=" flex items-start p-4 shadow-md bg-gray-100">
-      <Link href="/" className="text-xl font-bold">
-      YexCode
-      </Link>
-      <Link href="/benchmark" className="text-blue-603 underline">
-      Benchmark
-      </Link>
-      <Link href="/problems-list" className="text-blue-603 underline">
-      Problems
-      </Link>
-      <Link href="/foryou" className="text-blue-603 underline">
-      For You
-      </Link>
-      <SignedOut>
-        <SignInButton />
-        <SignUpButton>
-          <button className="bg-[#6c47ff] text-white rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 cursor-pointer">
-            Sign Up
-          </button>
-        </SignUpButton>
-      </SignedOut>
-      <SignedIn>
-        <UserButton />
-      </SignedIn>
+    <header className="w-full flex justify-center pt-2">
+      {/* Pill container */}
+      <div className={`
+          group relative
+          flex items-center justify-between gap-8 
+          w-[98vw] max-w-[1800px]
+          px-6 sm:px-10 
+          py-3
+          rounded-full
+          backdrop-blur-xl
+          border border-white/15
+          shadow-lg
+          ${transparent? "bg-white/10": "bg-white/10"}`}>
+        <Link href="/" className="text-white text-lg font-semibold">
+          YexCode
+        </Link>
+
+        <nav className="flex items-center gap-4 text-sm">
+          <Link href="/benchmark" className="text-white/80 hover:text-white">
+            Benchmark
+          </Link>
+          <Link href="/problems-list" className="text-white/80 hover:text-white">
+            Problems
+          </Link>
+          <Link href="/foryou" className="text-white/80 hover:text-white">
+            For You
+          </Link>
+        </nav>
+
+        <div className="flex items-center gap-3">
+          <SignedOut>
+            <SignInButton>
+              <button className="px-4 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-sm backdrop-blur-md">
+                Sign In
+              </button>
+            </SignInButton>
+            <SignUpButton>
+              <button className="px-4 py-1.5 rounded-full bg-[#6c47ff] hover:opacity-90 text-white text-sm">
+                Sign Up
+              </button>
+            </SignUpButton>
+          </SignedOut>
+
+          <SignedIn>
+            <UserButton />
+          </SignedIn>
+        </div>
+      </div>
     </header>
   );
-};
+}
 
 export default Navbar;

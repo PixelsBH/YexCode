@@ -17,20 +17,20 @@ export default async function ProblemStatement({ slug }: ProblemStatementProps) 
   const problem = await res.json();
 
   return (
-    <div className="p-6 border rounded-lg shadow-md bg-white">
-      <h1 className="text-2xl font-bold mb-2">{problem.title}</h1>
+    <div className="p-6 border rounded-lg shadow-md bg-neutral-800 border-white/60">
+      <h1 className="text-2xl font-bold mb-2 text-white">{problem.title}</h1>
       <div className="flex gap-4 mb-4">
-        <span className="text-gray-600">{problem.category}</span>
-        <span className="text-gray-600">{problem.difficulty}</span>
+        <span className="text-white">{problem.category}</span>
+        <span className="text-white">{problem.difficulty}</span>
       </div>
 
-      <p className="mb-4">{problem.description}</p>
+      <p className="mb-4 text-white">{problem.description}</p>
 
       {problem.examples?.length > 0 && (
         <div className="mb-4">
-          <h2 className="font-semibold mb-2">Examples:</h2>
+          <h2 className="font-semibold mb-2 text-white">Examples:</h2>
           {problem.examples.map((ex: any, i: number) => (
-            <div key={i} className="mb-2 p-2 bg-gray-100 rounded">
+            <div key={i} className="mb-2 p-2 bg-gray-400 rounded">
               <div>
                 <strong>Input:</strong> {ex.input}
               </div>
@@ -49,8 +49,8 @@ export default async function ProblemStatement({ slug }: ProblemStatementProps) 
 
       {problem.constraints?.length > 0 && (
         <div>
-          <h2 className="font-semibold mb-2">Constraints:</h2>
-          <ul className="list-disc ml-5">
+          <h2 className="font-semibold mb-2 text-white">Constraints:</h2>
+          <ul className="list-disc ml-5 text-white">
             {problem.constraints.map((c: string, i: number) => (
               <li key={i}>{c}</li>
             ))}

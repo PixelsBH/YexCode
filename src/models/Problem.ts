@@ -1,5 +1,10 @@
 import mongoose from "mongoose";
 
+const TestCaseSchema = new mongoose.Schema({
+  input: { type: String, required: true },
+  expectedOutput: { type: String, required: true }
+}, { _id: false });
+
 const ProblemSchema = new mongoose.Schema({
   slug: { type: String, required: true, unique: true },
   title: { type: String, required: true },
@@ -17,12 +22,13 @@ const ProblemSchema = new mongoose.Schema({
     }
   ],
 
-  testCases: [
-    {
-      input: { type: String, required: true },
-      expectedOutput: { type: String, required: true }
-    }
-  ],
+  testCases: {
+      sample: [TestCaseSchema],
+      hidden: [TestCaseSchema]
+  },
+
+  timeLimitMs: { type: Number, default: 2000 },
+  memoryLimitMb: { type: Number, default: 128 },
 
   createdAt: { type: Date, default: Date.now }
 });

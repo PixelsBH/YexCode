@@ -4,10 +4,10 @@ import Problem from "@/models/Problem";
 
 export async function GET(req: NextRequest, context: { params: { slug: string } }) {
   try {
-    const { slug } = context.params;
+    const { slug } = await context.params;
 
     await dbConnect();
-
+    
     const problem = await Problem.findOne({ slug });
 
     if (!problem) {
