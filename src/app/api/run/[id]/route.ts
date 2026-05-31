@@ -17,25 +17,21 @@ const getJudgeSubmitUrl = () => {
   return `${normalized}/submissions`;
 };
 
-export async function POST(req: NextRequest) {
-  const judgeUrl = getJudgeSubmitUrl();
-  if (!judgeUrl) {
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const judgeSubmitUrl = getJudgeSubmitUrl();
+  if (!judgeSubmitUrl) {
     return NextResponse.json(
       { error: "JUDGE_BASE_URL is not configured on the server." },
       { status: 500 }
     );
   }
 
-  const body = await req.json();
-
-  const response = await fetch(judgeUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
+  const { id } = await params;
+  const judgeUrl = `${judgeSubmitUrl.replace(/\/$/, "")}/${id}`;
+  const response = await fetch(judgeUrl);
   const data = await response.text();
   return new NextResponse(data, {
     status: response.status,

@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const TestCaseSchema = new mongoose.Schema({
+  id: { type: Number },
   input: { type: String, required: true },
   expectedOutput: { type: String, required: true }
 }, { _id: false });
@@ -22,13 +23,14 @@ const ProblemSchema = new mongoose.Schema({
     }
   ],
 
-  testCases: {
-      sample: [TestCaseSchema],
-      hidden: [TestCaseSchema]
-  },
+  // flat array of test cases suitable for presentation/submission
+  testCases: { type: [TestCaseSchema], default: [] },
 
-  timeLimitMs: { type: Number, default: 2000 },
-  memoryLimitMb: { type: Number, default: 128 },
+  // nested limits object consumed by the frontend
+  limits: {
+    timeLimitMs: { type: Number, default: 2000 },
+    memoryLimitMb: { type: Number, default: 128 },
+  },
 
   createdAt: { type: Date, default: Date.now }
 });
