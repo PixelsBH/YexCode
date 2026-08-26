@@ -1,11 +1,17 @@
 import React from "react";
 
+type ProblemExample = {
+  args: unknown[];
+  expected: unknown;
+  explanation?: string;
+};
+
 type Problem = {
   title: string;
   category: string;
   difficulty: string;
   description: string;
-  examples?: Array<{ input: string; output: string; explanation?: string }>;
+  examples?: ProblemExample[];
   constraints?: string[];
   testCases?: Array<{ id: number; input: string; expectedOutput: string }>;
   limits?: { timeLimitMs: number; memoryLimitMb: number };
@@ -13,6 +19,18 @@ type Problem = {
 
 type ProblemStatementProps = {
   problem: Problem;
+};
+
+// Format a value for display
+const formatValue = (value: unknown): string => {
+  if (typeof value === "string") return `"${value}"`;
+  if (Array.isArray(value)) {
+    return `[${value.map(formatValue).join(", ")}]`;
+  }
+  if (typeof value === "object" && value !== null) {
+    return JSON.stringify(value);
+  }
+  return String(value);
 };
 
 export default function ProblemStatement({ problem }: ProblemStatementProps) {
@@ -28,20 +46,40 @@ export default function ProblemStatement({ problem }: ProblemStatementProps) {
 
       {problem.examples && problem.examples.length > 0 && (
         <div className="mb-4">
-          <h2 className="font-semibold mb-2 text-white">Examples:</h2>
-          {problem.examples.map((ex: any, i: number) => (
-            <div key={i} className="mb-2 p-2 bg-gray-400 rounded">
-              <div>
-                <strong>Input:</strong> {ex.input}
+          <h2 className="font-semibold mb-4 text-white text-lg">Examples:</h2>
+          {problem.examples.map((ex, i) => (
+            <div key={i} className="mb-4 p-4 bg-gray-900/50 border border-gray-700 rounded-lg">
+              <div className="text-sm font-semibold text-blue-400 mb-3">
+                Example {i + 1}:
               </div>
-              <div>
-                <strong>Output:</strong> {ex.output}
-              </div>
-              {ex.explanation && (
-                <div>
-                  <strong>Explanation:</strong> {ex.explanation}
+
+              <div className="space-y-2 text-sm">
+                {/* Show args */}
+                {ex.args && Array.isArray(ex.args) && (
+                  <div className="flex gap-2">
+                    <span className="font-semibold text-gray-300">Input:</span>
+                    <span className="text-gray-100 font-mono">
+                      {ex.args.map(formatValue).join(", ")}
+                    </span>
+                  </div>
+                )}
+
+                {/* Show expected output */}
+                <div className="flex gap-2">
+                  <span className="font-semibold text-gray-300">Output:</span>
+                  <span className="text-gray-100 font-mono">
+                    {formatValue(ex.expected)}
+                  </span>
                 </div>
-              )}
+
+                {/* Show explanation */}
+                {ex.explanation && (
+                  <div className="flex gap-2 pt-1">
+                    <span className="font-semibold text-gray-300 min-w-max">Explanation:</span>
+                    <span className="text-gray-300 italic">{ex.explanation}</span>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>

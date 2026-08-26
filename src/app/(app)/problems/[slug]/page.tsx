@@ -25,10 +25,14 @@ export default async function ProblemPage({ params }: { params: Params }) {
         <ProblemStatement problem={problem} />
       </div>
       <div className="flex flex-col p-2">
-        <CodeEditor 
-          initialCode={"// Write your code here"} 
+        <CodeEditor
+          problemSlug={slug}
+          initialCode={problem.templates?.cpp || "// Write your code here"}
           testCases={problem.testCases}
+          testCasesJson={problem.testCasesJson}
           limits={problem.limits}
+          templates={problem.templates}
+          function={problem.function}
         />
       </div>
     </div>

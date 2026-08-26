@@ -18,7 +18,14 @@ function difficultyColor(difficulty: string) {
   }
 }
 
-export default function ProblemsTable({ problems }: { problems: any[] }) {
+type ProblemListItem = {
+  slug: string;
+  title: string;
+  category: string;
+  difficulty: string;
+};
+
+export default function ProblemsTable({ problems }: { problems: ProblemListItem[] }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 

@@ -1,0 +1,55 @@
+import fs from "node:fs";
+import path from "node:path";
+import mongoose from "mongoose";
+
+function loadLocalEnv() {
+  const envPath = path.join(process.cwd(), ".env.local");
+  if (!fs.existsSync(envPath)) return;
+
+  for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (!match || process.env[match[1]]) continue;
+
+    let value = match[2];
+    if (
+      value.length >= 2 &&
+      ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'")))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[match[1]] = value;
+  }
+}
+
+loadLocalEnv();
+
+const uri = process.env.MONGODB_URI;
+if (!uri) {
+  throw new Error("MONGODB_URI is not configured. Add it to .env.local or the environment.");
+}
+
+const fixturePath = path.join(process.cwd(), "data", "problems.json");
+const problems = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
+
+try {
+  await mongoose.connect(uri);
+  const collection = mongoose.connection.collection("problems");
+
+  for (const problem of problems) {
+    const document = { ...problem, createdAt: new Date() };
+    const result = await collection.updateOne(
+      { slug: problem.slug },
+      { $setOnInsert: document },
+      { upsert: true }
+    );
+
+    if (result.upsertedCount === 1) {
+      console.log(`Inserted ${problem.slug}`);
+    } else {
+      console.log(`Skipped ${problem.slug} (already exists)`);
+    }
+  }
+} finally {
+  await mongoose.disconnect();
+}

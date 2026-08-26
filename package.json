@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint . --ignore-pattern .next",
+    "seed:problems": "node scripts/seed-problems.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.34.0",
