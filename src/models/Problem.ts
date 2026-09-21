@@ -18,6 +18,7 @@ const ProblemSchema = new mongoose.Schema({
   // Structured examples matching function parameters (similar to testCasesJson)
   examples: [
     {
+      id: { type: Number },
       args: { type: mongoose.Schema.Types.Mixed },
       expected: { type: mongoose.Schema.Types.Mixed },
       explanation: { type: String },

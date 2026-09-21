@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import type { Extension } from "@codemirror/state";
 
 import { githubLight } from "@uiw/codemirror-theme-github";
@@ -11,7 +11,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { cpp } from "@codemirror/lang-cpp";
 import { python } from "@codemirror/lang-python";
 import { java } from "@codemirror/lang-java";
-import OutputPanel from "@/app/components/OutputPanel";
+import SubmissionPanel from "@/app/components/SubmissionPanel";
 
 let CodeMirrorWrapper: typeof import("@uiw/react-codemirror").default | null = null;
 
@@ -26,12 +26,6 @@ const themeMap: Record<string, Extension> = {
   Light: githubLight,
   Dracula: dracula,
   Dark: oneDark,
-};
-
-type TestCase = {
-  id: number;
-  input: string;
-  expectedOutput: string;
 };
 
 type Limits = {
@@ -59,17 +53,30 @@ type FunctionMetadata = {
   params: FunctionParam[];
 };
 
+type ExampleTestCase = {
+  id: number;
+  args: unknown[];
+  expected: unknown;
+  explanation?: string;
+};
+
 type TestCaseJson = {
   id: number;
   args: unknown[];
   expected: unknown;
 };
 
-type SubmissionResult = {
+type JudgeResult = {
   status: string;
+  passedTestCases?: number;
+  totalTestCases?: number;
   runtimeMs?: number;
   memoryMb?: number;
-  failedTestCase?: TestCaseJson & {
+  failedTestCase?: {
+    id: number;
+    args?: unknown[];
+    expected?: unknown;
+    expectedOutput?: string;
     actualOutput?: string;
   };
   errorMessage?: string;
@@ -78,11 +85,11 @@ type SubmissionResult = {
 type CodeEditorProps = {
   problemSlug: string;
   initialCode: string;
-  testCases?: TestCase[];
   testCasesJson?: TestCaseJson[];
   limits?: Limits;
   templates?: Templates;
   function?: FunctionMetadata;
+  examples?: ExampleTestCase[];
 };
 
 const getDraftKey = (problemSlug: string, language: string) => {
@@ -93,23 +100,33 @@ const getDraftKey = (problemSlug: string, language: string) => {
 const CodeEditor: React.FC<CodeEditorProps> = ({
   problemSlug,
   initialCode,
-  testCases = [],
   testCasesJson = [],
   limits = { timeLimitMs: 1000, memoryLimitMb: 128 },
   templates = {},
   function: functionMetadata,
+  examples = [],
 }) => {
   const [code, setCode] = useState(initialCode);
   const [loaded, setLoaded] = useState(false);
   const mountedRef = useRef(false);
-  const pollTimerRef = useRef<number | null>(null);
+  const runPollRef = useRef<number | null>(null);
+  const submitPollRef = useRef<number | null>(null);
 
   const [language, setLanguage] = useState("C++");
   const [theme, setTheme] = useState("Dark");
-  const [output, setOutput] = useState("Run code to see output...");
 
-  const [submissionStatus, setSubmissionStatus] = useState<string>("idle");
-  const [result, setResult] = useState<SubmissionResult | null>(null);
+  /* ─── Run state ─── */
+  const [runStatus, setRunStatus] = useState<string>("idle");
+  const [runResult, setRunResult] = useState<JudgeResult | null>(null);
+
+  /* ─── Submit state ─── */
+  const [submitStatus, setSubmitStatus] = useState<string>("idle");
+  const [submitResult, setSubmitResult] = useState<JudgeResult | null>(null);
+
+  /* ─── Panel tab ─── */
+  const [activeTab, setActiveTab] = useState<"run" | "submit">("run");
+
+  /* ─── Draft state ─── */
   const [draftStatus, setDraftStatus] = useState<"loading" | "saved" | "template" | "unavailable">("loading");
   const skipNextDraftSaveRef = useRef(false);
 
@@ -123,11 +140,12 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
     return () => {
       mountedRef.current = false;
-      clearPolling();
+      clearPoll(runPollRef);
+      clearPoll(submitPollRef);
     };
   }, []);
 
-  // Restore a draft for this problem/language, or fall back to the template.
+  // Restore draft
   useEffect(() => {
     const langKey = language === "C++" ? "cpp" : language.toLowerCase();
     const template = templates[langKey as keyof Templates] || initialCode;
@@ -144,7 +162,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   }, [problemSlug, language, templates, initialCode]);
 
-  // Debounce writes so typing does not cause a storage operation per keystroke.
+  // Debounced draft save
   useEffect(() => {
     if (skipNextDraftSaveRef.current) {
       skipNextDraftSaveRef.current = false;
@@ -177,85 +195,16 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   };
 
-  const clearPolling = () => {
-    if (pollTimerRef.current) {
-      window.clearTimeout(pollTimerRef.current);
-      pollTimerRef.current = null;
+  /* ─── Polling helpers ─── */
+
+  const clearPoll = (ref: React.RefObject<number | null>) => {
+    if (ref.current) {
+      window.clearTimeout(ref.current);
+      ref.current = null;
     }
   };
 
-  const getRunUrl = () => {
-    return "/api/run";
-  };
-
-  const getRunStatusUrl = (id: string) => {
-    return `/api/run/${id}`;
-  };
-
-  const pollSubmission = async (id: string) => {
-    try {
-      const statusUrl = getRunStatusUrl(id);
-      const statusRes = await fetch(statusUrl);
-
-      if (!statusRes.ok) {
-        setOutput(`Failed to fetch submission status: ${statusRes.status}`);
-        setSubmissionStatus("error");
-        return;
-      }
-
-      const statusData = await statusRes.json();
-      setSubmissionStatus(statusData.status || "unknown");
-
-      if (statusData.status === "queued" || statusData.status === "running") {
-        setOutput(statusData.status === "queued" ? "Queued..." : "Running...");
-        pollTimerRef.current = window.setTimeout(() => pollSubmission(id), 1000);
-        return;
-      }
-
-      if (statusData.status === "finished") {
-        const finalResult = statusData.result || null;
-        setResult(finalResult);
-
-        const finalStatus = finalResult?.status || "unknown";
-        const runtime = finalResult?.runtimeMs;
-        setOutput(runtime != null ? `${finalStatus} (${runtime}ms)` : finalStatus);
-        return;
-      }
-
-      if (statusData.status === "failed") {
-        const finalResult = statusData.result || {
-          status: "infrastructure_error",
-          errorMessage: statusData.failureMessage || "The judge could not process this submission.",
-        };
-        setResult(finalResult);
-        setOutput(finalResult.errorMessage || finalResult.status);
-        setSubmissionStatus("failed");
-        return;
-      }
-
-      setOutput(`Unexpected submission status: ${statusData.status || "unknown"}`);
-      setSubmissionStatus("error");
-    } catch (error) {
-      setOutput(`Error polling submission: ${error}`);
-      setSubmissionStatus("error");
-    }
-  };
-
-  const handleSubmit = async () => {
-    clearPolling();
-
-    setSubmissionStatus("submitting");
-    setResult(null);
-    setOutput("Submitting code...");
-
-    if (functionMetadata && testCasesJson.length === 0) {
-      setOutput("This function-mode problem has no JSON test cases configured.");
-      setSubmissionStatus("error");
-      return;
-    }
-
-    // Mongoose adds `_id` fields to nested documents. YexJudge uses strict JSON
-    // decoding, so forward only the fields in its public submission contract.
+  const buildPayload = (testCases: { id: number; args: unknown[]; expected: unknown }[]) => {
     const functionPayload = functionMetadata
       ? {
           name: functionMetadata.name,
@@ -263,30 +212,120 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           params: functionMetadata.params.map(({ name, type }) => ({ name, type })),
         }
       : undefined;
-    const functionTestCases = testCasesJson.map(({ id, args, expected }) => ({
+
+    const cleanedTestCases = testCases.map(({ id, args, expected }) => ({
       id,
       args,
       expected,
     }));
-    const stdinTestCases = testCases.map(({ id, input, expectedOutput }) => ({
-      id,
-      input,
-      expectedOutput,
-    }));
 
-    const payload = {
+    return {
       language: language === "C++" ? "cpp" : language.toLowerCase(),
       sourceCode: code,
-      testCases: functionMetadata ? functionTestCases : stdinTestCases,
+      testCases: cleanedTestCases,
       limits,
-      ...(functionPayload
-        ? { mode: "function", function: functionPayload }
-        : {}),
+      ...(functionPayload ? { mode: "function", function: functionPayload } : {}),
     };
+  };
+
+  const pollSubmission = useCallback(
+    (
+      id: string,
+      setStatus: (s: string) => void,
+      setResult: (r: JudgeResult | null) => void,
+      pollRef: React.RefObject<number | null>,
+    ) => {
+      const poll = async () => {
+        try {
+          const res = await fetch(`/api/run/${id}`);
+          if (!res.ok) {
+            const errData = await res.json().catch(() => null);
+            const msg =
+              (typeof errData?.error === "object" ? errData?.error?.message : errData?.error) ||
+              `Failed to check status (${res.status})`;
+            setResult({
+              status: "infrastructure_error",
+              errorMessage: msg,
+            });
+            setStatus("error");
+            return;
+          }
+
+          const data = await res.json();
+          setStatus(data.status || "unknown");
+
+          if (data.status === "queued" || data.status === "running") {
+            pollRef.current = window.setTimeout(poll, 1000);
+            return;
+          }
+
+          if (data.status === "finished") {
+            setResult(data.result || null);
+            setStatus("finished");
+            return;
+          }
+
+          if (data.status === "failed") {
+            const finalResult = data.result || {
+              status: "infrastructure_error",
+              errorMessage: data.failureMessage || "The judge could not process this submission.",
+            };
+            setResult(finalResult);
+            setStatus("failed");
+            return;
+          }
+
+          setStatus("error");
+          setResult({
+            status: "infrastructure_error",
+            errorMessage: `Unexpected submission status: ${data.status}`,
+          });
+        } catch (err) {
+          setStatus("error");
+          setResult({
+            status: "infrastructure_error",
+            errorMessage: err instanceof Error ? err.message : "Failed to communicate with the server",
+          });
+        }
+      };
+
+      poll();
+    },
+    [],
+  );
+
+  const submitToJudge = async (
+    testCases: { id: number; args: unknown[]; expected: unknown }[],
+    setStatus: (s: string) => void,
+    setResult: (r: JudgeResult | null) => void,
+    pollRef: React.RefObject<number | null>,
+  ) => {
+    clearPoll(pollRef);
+    setStatus("submitting");
+    setResult(null);
+
+    if (!functionMetadata) {
+      setResult({
+        status: "infrastructure_error",
+        errorMessage: "Missing function definition for this problem.",
+      });
+      setStatus("error");
+      return;
+    }
+
+    if (testCases.length === 0) {
+      setResult({
+        status: "infrastructure_error",
+        errorMessage: "No test cases provided.",
+      });
+      setStatus("error");
+      return;
+    }
+
+    const payload = buildPayload(testCases);
 
     try {
-      const submitUrl = getRunUrl();
-      const response = await fetch(submitUrl, {
+      const response = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -294,34 +333,72 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        const message = data?.error?.message || data?.error || `Judge API error: ${response.status}`;
-        setOutput(message);
-        setSubmissionStatus("error");
+        const errorMsg =
+          (typeof data?.error === "object" ? data?.error?.message : data?.error) ||
+          data?.message ||
+          `Judge error (${response.status})`;
+
+        setResult({
+          status: "infrastructure_error",
+          errorMessage: errorMsg,
+        });
+        setStatus("error");
         return;
       }
 
       const id = data?.submissionId || data?.id;
       if (!id) {
-        setOutput(`Unexpected judge response: ${JSON.stringify(data)}`);
-        setSubmissionStatus("error");
+        setResult({
+          status: "infrastructure_error",
+          errorMessage: data?.error || "Invalid response from judge (missing submission ID)",
+        });
+        setStatus("error");
         return;
       }
 
-
-      setSubmissionStatus(data.status || "queued");
-      setOutput(data.status === "running" ? "Running..." : "Queued...");
+      setStatus(data.status || "queued");
 
       if (data.status === "finished" || data.status === "failed") {
-        await pollSubmission(String(id));
+        pollSubmission(String(id), setStatus, setResult, pollRef);
       } else {
-        pollTimerRef.current = window.setTimeout(() => pollSubmission(String(id)), 500);
+        pollRef.current = window.setTimeout(
+          () => pollSubmission(String(id), setStatus, setResult, pollRef),
+          500,
+        );
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setOutput(`Failed to submit code: ${message}`);
-      setSubmissionStatus("error");
+    } catch (err) {
+      setResult({
+        status: "infrastructure_error",
+        errorMessage: err instanceof Error ? err.message : "Failed to connect to judge",
+      });
+      setStatus("error");
     }
   };
+
+  /* ─── Handlers ─── */
+
+  const handleRun = () => {
+    setActiveTab("run");
+    const exampleTestCases = examples.map((ex, index) => ({
+      id: typeof ex.id === "number" ? ex.id : index + 1,
+      args: ex.args,
+      expected: ex.expected,
+    }));
+    submitToJudge(exampleTestCases, setRunStatus, setRunResult, runPollRef);
+  };
+
+  const handleSubmit = () => {
+    setActiveTab("submit");
+    const testCases = testCasesJson.map((tc, index) => ({
+      id: typeof tc.id === "number" ? tc.id : index + 1,
+      args: tc.args,
+      expected: tc.expected,
+    }));
+    submitToJudge(testCases, setSubmitStatus, setSubmitResult, submitPollRef);
+  };
+
+  const isRunBusy = runStatus === "submitting" || runStatus === "queued" || runStatus === "running";
+  const isSubmitBusy = submitStatus === "submitting" || submitStatus === "queued" || submitStatus === "running";
 
   return (
     <div className="flex flex-col rounded-xl border border-white/10 bg-black/40 backdrop-blur-xl overflow-hidden">
@@ -388,8 +465,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       {/* Bottom Bar */}
       <div className="flex items-center justify-end gap-3 px-4 py-2 border-t border-white/10 bg-black/30">
         <button
-          onClick={handleSubmit}
-          disabled={submissionStatus === "submitting" || submissionStatus === "queued" || submissionStatus === "running"}
+          onClick={handleRun}
+          disabled={isRunBusy || isSubmitBusy}
           className="flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition"
         >
           ▶ Run Code
@@ -397,14 +474,24 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
         <button
           onClick={handleSubmit}
-          className="px-4 py-1.5 rounded-md text-sm font-medium text-white bg-[#6c47ff] hover:opacity-90 transition"
+          disabled={isRunBusy || isSubmitBusy}
+          className="px-4 py-1.5 rounded-md text-sm font-medium text-white bg-[#6c47ff] hover:opacity-90 disabled:opacity-50 transition"
         >
           Submit Code
         </button>
       </div>
 
-      <div className="mt-4">
-        <OutputPanel output={output} result={result} submissionStatus={submissionStatus} />
+      {/* Submission Panel */}
+      <div className="mt-0">
+        <SubmissionPanel
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          runResult={runResult}
+          runExamples={examples}
+          runStatus={runStatus}
+          submitResult={submitResult}
+          submitStatus={submitStatus}
+        />
       </div>
     </div>
   );

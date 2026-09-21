@@ -37,17 +37,21 @@ try {
   const collection = mongoose.connection.collection("problems");
 
   for (const problem of problems) {
-    const document = { ...problem, createdAt: new Date() };
     const result = await collection.updateOne(
       { slug: problem.slug },
-      { $setOnInsert: document },
+      {
+        $set: { ...problem, updatedAt: new Date() },
+        $setOnInsert: { createdAt: new Date() },
+      },
       { upsert: true }
     );
 
     if (result.upsertedCount === 1) {
       console.log(`Inserted ${problem.slug}`);
+    } else if (result.modifiedCount >= 1) {
+      console.log(`Updated ${problem.slug}`);
     } else {
-      console.log(`Skipped ${problem.slug} (already exists)`);
+      console.log(`Up-to-date ${problem.slug}`);
     }
   }
 } finally {

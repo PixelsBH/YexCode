@@ -28,11 +28,11 @@ export default async function ProblemPage({ params }: { params: Params }) {
         <CodeEditor
           problemSlug={slug}
           initialCode={problem.templates?.cpp || "// Write your code here"}
-          testCases={problem.testCases}
           testCasesJson={problem.testCasesJson}
           limits={problem.limits}
           templates={problem.templates}
           function={problem.function}
+          examples={problem.examples}
         />
       </div>
     </div>
