@@ -1,10 +1,3 @@
-import Navbar from '../components/Navbar'
-
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <Navbar />
-      <main className="p-2 bg-neutral-900">{children}</main>
-    </>
-  )
+  return <main className="min-h-screen px-2 pb-2 pt-24">{children}</main>
 }
