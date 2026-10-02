@@ -62,6 +62,9 @@ const getStatusIcon = (status: string) => {
   }
 };
 
+const formatMemory = (memoryMb: number): string =>
+  memoryMb < 1 ? `${Math.max(1, Math.round(memoryMb * 1024))}KB` : `${memoryMb.toFixed(2)}MB`;
+
 const formatValue = (value: unknown): string => {
   if (value === undefined) return "";
   if (typeof value === "string") return value;
@@ -91,7 +94,7 @@ export default function OutputPanel({ output, result, submissionStatus }: Output
             {result.runtimeMs !== undefined && (
               <div className="text-xs text-gray-400 mt-1">
                 Runtime: {result.runtimeMs}ms
-                {result.memoryMb !== undefined && ` • Memory: ${result.memoryMb}MB`}
+                {result.memoryMb !== undefined && result.memoryMb > 0 && ` • Memory: ${formatMemory(result.memoryMb)}`}
               </div>
             )}
           </div>

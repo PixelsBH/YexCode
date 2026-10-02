@@ -51,6 +51,9 @@ type FunctionMetadata = {
   name: string;
   returnType: string;
   params: FunctionParam[];
+  comparison?: {
+    returnArrayOrder?: "unordered";
+  };
 };
 
 type ExampleTestCase = {
@@ -210,6 +213,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           name: functionMetadata.name,
           returnType: functionMetadata.returnType,
           params: functionMetadata.params.map(({ name, type }) => ({ name, type })),
+          ...(functionMetadata.comparison?.returnArrayOrder
+            ? { comparison: functionMetadata.comparison }
+            : {}),
         }
       : undefined;
 

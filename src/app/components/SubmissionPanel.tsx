@@ -65,6 +65,9 @@ const formatStatus = (status: string) =>
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 
+const formatMemory = (memoryMb: number): string =>
+  memoryMb < 1 ? `${Math.max(1, Math.round(memoryMb * 1024))}KB` : `${memoryMb.toFixed(2)}MB`;
+
 const formatValue = (value: unknown): string => {
   if (value === undefined || value === null) return "";
   if (typeof value === "string") return value;
@@ -233,7 +236,9 @@ function RunPanel({
           <div className="flex items-center gap-2">
             <MetricPill label="Passed" value={`${passed}/${total}`} />
             {result.runtimeMs !== undefined && <MetricPill label="Runtime" value={`${result.runtimeMs}ms`} />}
-            {(result.memoryMb ?? 0) > 0 && <MetricPill label="Memory" value={`${result.memoryMb}MB`} />}
+            {result.memoryMb !== undefined && result.memoryMb > 0 && (
+              <MetricPill label="Memory" value={formatMemory(result.memoryMb)} />
+            )}
           </div>
         </div>
       </div>
@@ -348,7 +353,9 @@ function SubmitPanel({ result, status }: { result: JudgeResult | null; status: s
         <div className="flex items-center gap-2">
           {total > 0 && <MetricPill label="Passed" value={`${passed}/${total}`} />}
           {result.runtimeMs !== undefined && <MetricPill label="Runtime" value={`${result.runtimeMs}ms`} />}
-          {(result.memoryMb ?? 0) > 0 && <MetricPill label="Memory" value={`${result.memoryMb}MB`} />}
+          {result.memoryMb !== undefined && result.memoryMb > 0 && (
+            <MetricPill label="Memory" value={formatMemory(result.memoryMb)} />
+          )}
         </div>
       </div>
 
@@ -393,9 +400,6 @@ export default function SubmissionPanel({
   submitResult,
   submitStatus,
 }: SubmissionPanelProps) {
-  const runHasResult = runStatus !== "idle";
-  const submitHasResult = submitStatus !== "idle";
-
   // Compute tab badge state
   const runBadge =
     runResult?.status === "accepted"

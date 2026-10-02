@@ -24,19 +24,27 @@ function loadLocalEnv() {
 
 loadLocalEnv();
 
+const fixturePath = path.join(process.cwd(), "data", "problems.json");
+const problems = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
+const slugFilter = process.argv[2];
+const problemsToSeed = slugFilter
+  ? problems.filter((problem) => problem.slug === slugFilter)
+  : problems;
+
+if (slugFilter && problemsToSeed.length === 0) {
+  throw new Error(`No problem with slug ${JSON.stringify(slugFilter)} exists in ${fixturePath}.`);
+}
+
 const uri = process.env.MONGODB_URI;
 if (!uri) {
   throw new Error("MONGODB_URI is not configured. Add it to .env.local or the environment.");
 }
 
-const fixturePath = path.join(process.cwd(), "data", "problems.json");
-const problems = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
-
 try {
   await mongoose.connect(uri);
   const collection = mongoose.connection.collection("problems");
 
-  for (const problem of problems) {
+  for (const problem of problemsToSeed) {
     const result = await collection.updateOne(
       { slug: problem.slug },
       {
