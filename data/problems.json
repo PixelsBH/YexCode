@@ -129,5 +129,40 @@
       { "id": 3, "args": [[5, 4, -1, 7, 8]], "expected": 23 },
       { "id": 4, "args": [[-3, -1, -2]], "expected": -1 }
     ]
+  },
+  {
+    "slug": "subsets",
+    "title": "Subsets",
+    "difficulty": "Medium",
+    "category": "Backtracking",
+    "description": "Given an integer array nums of unique elements, return every possible subset (the power set). The order of the subsets does not matter; keep the elements within each subset in input order.",
+    "constraints": [
+      "0 <= nums.length <= 10",
+      "-10 <= nums[i] <= 10",
+      "All values in nums are unique"
+    ],
+    "examples": [
+      {
+        "id": 1,
+        "args": [[1, 2, 3]],
+        "expected": [[], [1], [2], [1, 2], [3], [1, 3], [2, 3], [1, 2, 3]],
+        "explanation": "There are 2^3 = 8 subsets. Their order in the output is arbitrary."
+      }
+    ],
+    "limits": { "timeLimitMs": 1000, "memoryLimitMb": 128 },
+    "templates": {
+      "cpp": "class Solution {\npublic:\n    vector<vector<int>> subsets(vector<int>& nums) {\n        return {};\n    }\n};"
+    },
+    "function": {
+      "name": "subsets",
+      "returnType": "vector<vector<int>>",
+      "params": [{ "name": "nums", "type": "vector<int>&" }],
+      "comparison": { "returnArrayOrder": "unordered" }
+    },
+    "testCasesJson": [
+      { "id": 1, "args": [[1, 2, 3]], "expected": [[], [1], [2], [1, 2], [3], [1, 3], [2, 3], [1, 2, 3]] },
+      { "id": 2, "args": [[]], "expected": [[]] },
+      { "id": 3, "args": [[0, 1]], "expected": [[], [0], [1], [0, 1]] }
+    ]
   }
 ]

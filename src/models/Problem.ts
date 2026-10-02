@@ -51,7 +51,10 @@ const ProblemSchema = new mongoose.Schema({
         type: { type: String },
         _id: false
       }
-    ]
+    ],
+    comparison: {
+      returnArrayOrder: { type: String, enum: ["unordered"] }
+    }
   },
 
   testCasesJson: [
