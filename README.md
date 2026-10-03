@@ -18,6 +18,7 @@ From the YexCode directory, copy the environment template and fill in your Mongo
 ```bash
 cp .env.local.example .env.local
 bun install
+bun run validate:problems
 bun run migrate:problems -- --dry-run
 bun run migrate:problems
 bun run seed:problems
@@ -26,7 +27,9 @@ bun run dev
 
 Open [http://localhost:3000](http://localhost:3000). Start YexJudge separately before using Run Code or Submit Code. To seed only the Subsets problem, run `bun run seed:problems -- subsets` instead of seeding every fixture.
 
-For an end-to-end Run/Submit check, start YexJudge with Docker Compose, then run `bun run build` followed by `bun run smoke:two-sum`. The smoke test starts a temporary production web server and verifies the public problem response, examples-only Run, and complete-suite Submit against the configured MongoDB and judge.
+For an existing local development database where hidden suites must be preserved, use `bun run sync:problem-metadata -- --dry-run` and then `bun run sync:problem-metadata`. This updates topics, companies, hints, and private reference solutions without replacing test cases. Do not use this command or the fixture seeder with production data; reference solutions are development-only, and both write scripts refuse to run when `NODE_ENV=production`.
+
+For a local end-to-end Run/Submit check, start YexJudge with Docker Compose, then run `bun run build` followed by `bun run smoke:two-sum`. Use `bun run smoke:problems` to compile-check every template, run every checked-in reference solution, and exercise topic filtering/pagination. These scripts start a temporary production web server and create real judge submissions, so use local development services only—not staging or production.
 
 ## Documentation
 

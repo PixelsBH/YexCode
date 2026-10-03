@@ -7,9 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ignore-pattern .next",
+    "test": "node --test scripts/problem-validation.test.mjs src/lib/judge-contract.test.mjs",
+    "validate:problems": "node scripts/validate-problems.mjs",
     "seed:problems": "node scripts/seed-problems.mjs",
+    "sync:problem-metadata": "node scripts/sync-problem-metadata.mjs",
     "migrate:problems": "node scripts/migrate-problems.mjs",
-    "smoke:two-sum": "node scripts/smoke-two-sum.mjs"
+    "smoke:two-sum": "node scripts/smoke-two-sum.mjs",
+    "smoke:problems": "node scripts/smoke-two-sum.mjs --all"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.34.0",

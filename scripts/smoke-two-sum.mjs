@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import net from "node:net";
 import http from "node:http";
@@ -6,20 +7,10 @@ import dns from "node:dns";
 dns.setDefaultResultOrder("ipv4first");
 
 const judgeBase = (process.env.JUDGE_BASE_URL || "http://127.0.0.1:8080").replace(/\/$/, "");
-const solution = `#include <bits/stdc++.h>
-using namespace std;
-class Solution {
-public:
-    vector<int> twoSum(vector<int>& nums, int target) {
-        unordered_map<int, int> seen;
-        for (int i = 0; i < static_cast<int>(nums.size()); ++i) {
-            auto match = seen.find(target - nums[i]);
-            if (match != seen.end()) return {match->second, i};
-            seen[nums[i]] = i;
-        }
-        return {};
-    }
-};`;
+const fixtures = JSON.parse(readFileSync(new URL("../data/problems.json", import.meta.url), "utf8"));
+const allProblems = process.argv.includes("--all");
+const testProblems = allProblems ? fixtures : fixtures.filter((problem) => problem.slug === "two-sum");
+if (testProblems.length === 0) throw new Error("No problem fixtures selected for the smoke test.");
 
 function localRequest(url, { method = "GET", headers = {}, body, timeoutMs = 10_000 } = {}) {
   return new Promise((resolve, reject) => {
@@ -76,12 +67,12 @@ async function waitForServer(baseUrl, server) {
   throw new Error(`YexCode did not answer the local API (${lastError}).`);
 }
 
-async function waitForProblem(baseUrl, server) {
+async function waitForProblem(baseUrl, server, slug) {
   let lastError = "no response";
   for (let attempt = 0; attempt < 18; attempt++) {
     if (server.exitCode !== null) throw new Error(`YexCode exited during startup (${server.exitCode}).`);
     try {
-      const response = await localRequest(`${baseUrl}/api/problems/two-sum`, { timeoutMs: 5000 });
+      const response = await localRequest(`${baseUrl}/api/problems/${encodeURIComponent(slug)}`, { timeoutMs: 5000 });
       if (response.status >= 200 && response.status < 300) return JSON.parse(response.body);
       lastError = `problem API returned ${response.status}: ${response.body.slice(0, 200)}`;
     } catch (error) {
@@ -89,15 +80,15 @@ async function waitForProblem(baseUrl, server) {
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  throw new Error(`YexCode did not load two-sum within 108 seconds (${lastError}).`);
+  throw new Error(`YexCode did not load ${slug} within 108 seconds (${lastError}).`);
 }
 
-async function submitAndWait(baseUrl, operation, expectedTotal) {
+async function submitAndWait(baseUrl, problem, operation, expectedTotal, sourceCode = problem.referenceSolution.cpp, expectAccepted = true) {
   const endpoint = operation === "run" ? "/api/run" : "/api/submissions";
   const response = await localRequest(`${baseUrl}${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ slug: "two-sum", language: "cpp", sourceCode: solution }),
+    body: JSON.stringify({ slug: problem.slug, language: "cpp", sourceCode }),
     timeoutMs: 30_000,
   });
   const created = JSON.parse(response.body);
@@ -113,12 +104,15 @@ async function submitAndWait(baseUrl, operation, expectedTotal) {
     const result = JSON.parse(resultResponse.body);
     if (resultResponse.status < 200 || resultResponse.status >= 300) throw new Error(`${operation} polling failed (${resultResponse.status}).`);
     if (result.status === "finished" || result.status === "failed") {
-      if (
-        result.status !== "finished" ||
+      const invalidAcceptedResult = expectAccepted && (
         result.result?.status !== "accepted" ||
         result.result?.passedTestCases !== result.result?.totalTestCases ||
         (expectedTotal !== null && result.result?.totalTestCases !== expectedTotal)
-      ) {
+      );
+      const invalidTemplateResult = !expectAccepted && (
+        !result.result || ["compilation_error", "infrastructure_error"].includes(result.result.status)
+      );
+      if (result.status !== "finished" || invalidAcceptedResult || invalidTemplateResult) {
         const summary = {
           status: result.result?.status,
           passedTestCases: result.result?.passedTestCases,
@@ -152,58 +146,102 @@ const server = spawn(
 );
 
 try {
-  console.log("Starting YexCode and loading the public two-sum record.");
+  console.log(`Starting YexCode and checking ${testProblems.length} problem fixture(s).`);
   await waitForServer(baseUrl, server);
-  console.log("YexCode is serving pages; waiting for the problem API.");
-  const problem = await waitForProblem(baseUrl, server);
-  console.log("Public two-sum response loaded.");
-  const listResponse = await localRequest(`${baseUrl}/api/problems`);
-  if (listResponse.status !== 200) throw new Error(`Problem list request failed (${listResponse.status}).`);
-  const problemList = JSON.parse(listResponse.body);
-  if (!Array.isArray(problemList) || !problemList.some((entry) => entry.slug === "two-sum")) {
-    throw new Error("Two-sum is missing from the problem list.");
+  console.log("YexCode is serving pages; checking paginated problem discovery.");
+
+  const pageOneResponse = await localRequest(`${baseUrl}/api/problems?page=1&pageSize=2`);
+  const pageOneRepeatResponse = await localRequest(`${baseUrl}/api/problems?page=1&pageSize=2`);
+  const pageTwoResponse = await localRequest(`${baseUrl}/api/problems?page=2&pageSize=2`);
+  if (pageOneResponse.status !== 200 || pageOneRepeatResponse.status !== 200 || pageTwoResponse.status !== 200) {
+    throw new Error("Paginated problem-list request failed.");
   }
-  for (const entry of problemList) {
-    for (const privateField of ["hiddenTestCases", "testCasesJson", "testCases", "category"]) {
+  const pageOne = JSON.parse(pageOneResponse.body);
+  const pageOneRepeat = JSON.parse(pageOneRepeatResponse.body);
+  const pageTwo = JSON.parse(pageTwoResponse.body);
+  if (pageOne.page !== 1 || pageOne.pageSize !== 2 || pageTwo.page !== 2 || !Array.isArray(pageOne.items) || !Array.isArray(pageOne.topics)) {
+    throw new Error("Problem list did not return the paginated response contract.");
+  }
+  const pageOneSlugs = pageOne.items.map((entry) => entry.slug);
+  const pageTwoSlugs = pageTwo.items.map((entry) => entry.slug);
+  const repeatedSlugs = pageOneRepeat.items.map((entry) => entry.slug);
+  if (JSON.stringify(pageOneSlugs) !== JSON.stringify(repeatedSlugs)) throw new Error("Problem pagination order is unstable.");
+  if (pageOneSlugs.some((slug) => pageTwoSlugs.includes(slug))) throw new Error("Problem pages contain duplicate records.");
+  for (const entry of [...pageOne.items, ...pageTwo.items]) {
+    for (const privateField of ["hiddenTestCases", "referenceSolution", "testCasesJson", "testCases", "category"]) {
       if (Object.hasOwn(entry, privateField)) throw new Error(`Problem list response contains ${privateField}.`);
     }
   }
-  for (const privateField of ["hiddenTestCases", "testCasesJson", "testCases", "category"]) {
-    if (Object.hasOwn(problem, privateField)) throw new Error(`Public problem response contains ${privateField}.`);
-  }
-  if (problem.schemaVersion !== 1 || !Array.isArray(problem.topics) || !Array.isArray(problem.companies)) {
-    throw new Error("Two-sum problem response does not use the versioned public content shape.");
+
+  const topic = testProblems[0].topics[0];
+  const topicResponse = await localRequest(`${baseUrl}/api/problems?topic=${encodeURIComponent(topic)}`);
+  const topicData = JSON.parse(topicResponse.body);
+  if (topicResponse.status !== 200 || !topicData.items.every((entry) => entry.topics.includes(topic))) {
+    throw new Error(`Topic filter returned a problem outside ${topic}.`);
   }
 
-  const forgedTests = await localRequest(`${baseUrl}/api/run`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ slug: "two-sum", language: "cpp", sourceCode: solution, testCases: [] }),
-  });
-  if (forgedTests.status !== 400) throw new Error("Run endpoint accepted client-supplied test cases.");
+  const malformedPage = await localRequest(`${baseUrl}/api/problems?page=zero`);
+  if (malformedPage.status !== 400) throw new Error("Problem list accepted invalid pagination parameters.");
 
-  const runResult = await submitAndWait(baseUrl, "run", problem.examples.length);
-  const submitResult = await submitAndWait(baseUrl, "submit", null);
-  if (submitResult.totalTestCases <= runResult.totalTestCases) {
-    throw new Error("Submit did not include any server-only cases beyond the visible examples.");
+  const results = [];
+  for (const fixture of testProblems) {
+    console.log(`Checking public problem ${fixture.slug}.`);
+    const problem = await waitForProblem(baseUrl, server, fixture.slug);
+    for (const privateField of ["hiddenTestCases", "referenceSolution", "testCasesJson", "testCases", "category"]) {
+      if (Object.hasOwn(problem, privateField)) throw new Error(`Public ${fixture.slug} response contains ${privateField}.`);
+    }
+    if (problem.schemaVersion !== 1 || !Array.isArray(problem.topics) || !Array.isArray(problem.companies)) {
+      throw new Error(`${fixture.slug} does not use the versioned public content shape.`);
+    }
+
+    const forgedTests = await localRequest(`${baseUrl}/api/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        slug: fixture.slug,
+        language: "cpp",
+        sourceCode: fixture.referenceSolution.cpp,
+        testCases: [],
+      }),
+    });
+    if (forgedTests.status !== 400) throw new Error(`Run accepted client-supplied tests for ${fixture.slug}.`);
+
+    const templateResult = await submitAndWait(
+      baseUrl,
+      fixture,
+      "run",
+      problem.examples.length,
+      fixture.templates.cpp,
+      false,
+    );
+    const runResult = await submitAndWait(baseUrl, fixture, "run", problem.examples.length);
+    const submitResult = await submitAndWait(baseUrl, fixture, "submit", null);
+    if (submitResult.totalTestCases <= runResult.totalTestCases) {
+      throw new Error(`Submit omitted server-only cases for ${fixture.slug}.`);
+    }
+    results.push({
+      problem: fixture.slug,
+      templateStatus: templateResult.status,
+      run: {
+        status: runResult.status,
+        passedTestCases: runResult.passedTestCases,
+        totalTestCases: runResult.totalTestCases,
+        runtimeMs: runResult.runtimeMs,
+      },
+      submit: {
+        status: submitResult.status,
+        passedTestCases: submitResult.passedTestCases,
+        totalTestCases: submitResult.totalTestCases,
+        runtimeMs: submitResult.runtimeMs,
+      },
+    });
   }
 
   console.log(JSON.stringify({
-    problem: problem.slug,
-    publicResponseExcludesHiddenCases: true,
+    publicResponsesExcludeHiddenTestsAndReferences: true,
+    topicFilterAndStablePagination: true,
     clientSuppliedTestsRejected: true,
-    run: {
-      status: runResult.status,
-      passedTestCases: runResult.passedTestCases,
-      totalTestCases: runResult.totalTestCases,
-      runtimeMs: runResult.runtimeMs,
-    },
-    submit: {
-      status: submitResult.status,
-      passedTestCases: submitResult.passedTestCases,
-      totalTestCases: submitResult.totalTestCases,
-      runtimeMs: submitResult.runtimeMs,
-    },
+    results,
   }, null, 2));
 } finally {
   try {

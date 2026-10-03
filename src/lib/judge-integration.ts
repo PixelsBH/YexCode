@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Problem from "@/models/Problem";
+import {
+  normalizeJudgeError,
+  normalizeSubmissionEnvelope,
+} from "@/lib/judge-contract.mjs";
 
 const MAX_REQUEST_BYTES = 1024 * 1024;
 const MAX_SOURCE_BYTES = 128 * 1024;
@@ -156,8 +160,17 @@ function requestIdFor(request: NextRequest): string {
 }
 
 function errorResponse(message: string, status: number, requestId: string) {
+  const code = status === 400
+    ? "validation_error"
+    : status === 404
+      ? "not_found"
+      : status === 413
+        ? "request_too_large"
+        : status === 502
+          ? "judge_unavailable"
+          : "yexcode_error";
   return NextResponse.json(
-    { error: message, requestId },
+    { error: { code, message: message.slice(0, 8_192), requestId } },
     { status, headers: { "X-Request-ID": requestId, "Cache-Control": "no-store" } }
   );
 }
@@ -168,15 +181,58 @@ function getJudgeSubmissionsUrl(): string | null {
   return base.endsWith("/submissions") ? base : `${base}/submissions`;
 }
 
-function judgeResponse(response: Response, requestId: string) {
-  return response.text().then((body) => {
-    const headers = new Headers({
-      "Content-Type": response.headers.get("content-type") || "application/json",
-      "Cache-Control": "no-store",
-      "X-Request-ID": response.headers.get("x-request-id") || requestId,
-    });
-    return new NextResponse(body, { status: response.status, headers });
+async function readBoundedBody(stream: ReadableStream<Uint8Array> | null, maxBytes: number): Promise<string | null> {
+  const reader = stream?.getReader();
+  if (!reader) return "";
+
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks, totalBytes).toString("utf8");
+}
+
+async function judgeResponse(response: Response, requestId: string, kind: "create" | "poll") {
+  const headers = new Headers({
+    "Cache-Control": "no-store",
+    "X-Request-ID": response.headers.get("x-request-id") || requestId,
   });
+  const maxResponseBytes = 256 * 1024;
+  const contentLength = Number(response.headers.get("content-length") || 0);
+  if (contentLength > maxResponseBytes) {
+    await response.body?.cancel();
+    return errorResponse("YexJudge returned an oversized response.", 502, requestId);
+  }
+
+  const raw = await readBoundedBody(response.body, maxResponseBytes);
+  if (raw === null) return errorResponse("YexJudge returned an oversized response.", 502, requestId);
+
+  let body: unknown;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    return errorResponse("YexJudge returned an invalid response.", 502, requestId);
+  }
+
+  if (!response.ok) {
+    return NextResponse.json(normalizeJudgeError(body, requestId), { status: response.status, headers });
+  }
+
+  const normalized = normalizeSubmissionEnvelope(body, kind);
+  if (!normalized) return errorResponse("YexJudge returned an invalid submission response.", 502, requestId);
+  return NextResponse.json(normalized, { status: response.status, headers });
 }
 
 export async function createJudgeSubmission(request: NextRequest, operation: Operation) {
@@ -186,12 +242,16 @@ export async function createJudgeSubmission(request: NextRequest, operation: Ope
     return errorResponse("Request body exceeds the 1 MB limit.", 413, requestId);
   }
 
+  let raw: string | null;
+  try {
+    raw = await readBoundedBody(request.body, MAX_REQUEST_BYTES);
+  } catch {
+    return errorResponse("Request body could not be read.", 400, requestId);
+  }
+  if (raw === null) return errorResponse("Request body exceeds the 1 MB limit.", 413, requestId);
+
   let body: unknown;
   try {
-    const raw = await request.text();
-    if (Buffer.byteLength(raw, "utf8") > MAX_REQUEST_BYTES) {
-      return errorResponse("Request body exceeds the 1 MB limit.", 413, requestId);
-    }
     body = JSON.parse(raw);
   } catch {
     return errorResponse("Request body must be valid JSON.", 400, requestId);
@@ -219,7 +279,7 @@ export async function createJudgeSubmission(request: NextRequest, operation: Ope
       cache: "no-store",
       signal: request.signal,
     });
-    return judgeResponse(response, requestId);
+    return judgeResponse(response, requestId, "create");
   } catch {
     return errorResponse("YexJudge is unavailable. Please retry shortly.", 502, requestId);
   }
@@ -242,7 +302,7 @@ export async function getJudgeSubmission(request: NextRequest, id: string) {
       headers: { "X-Request-ID": requestId },
       signal: request.signal,
     });
-    return judgeResponse(response, requestId);
+    return judgeResponse(response, requestId, "poll");
   } catch {
     return errorResponse("YexJudge is unavailable. Please retry shortly.", 502, requestId);
   }

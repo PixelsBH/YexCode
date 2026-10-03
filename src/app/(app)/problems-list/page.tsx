@@ -1,11 +1,11 @@
 import ProblemsTable from "@/app/components/ProblemsTable";
 
 async function getProblems() {
-  const base = process.env.NEXT_PUBLIC_BASE_URL;
-  const res = await fetch(`${base}/api/problems`, { cache: "no-store" });
+  const base = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  const response = await fetch(`${base}/api/problems?page=1&pageSize=8`, { cache: "no-store" });
 
-  if (!res.ok) throw new Error("Failed to fetch problems");
-  return res.json();
+  if (!response.ok) throw new Error("Failed to fetch problems");
+  return response.json();
 }
 
 export default async function ProblemsListPage() {
@@ -18,7 +18,7 @@ export default async function ProblemsListPage() {
         Practice problems to benchmark your skills
       </p>
 
-      <ProblemsTable problems={problems} />
+      <ProblemsTable initialData={problems} />
     </div>
   );
 }

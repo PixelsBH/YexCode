@@ -29,6 +29,10 @@ const ProblemSchema = new mongoose.Schema(
     constraints: { type: [String], required: true, default: [] },
     topics: { type: [String], required: true, default: [] },
     companies: { type: [String], required: true, default: [] },
+    hints: { type: [String], required: true, default: [] },
+    referenceSolution: {
+      cpp: { type: String, required: true, select: false },
+    },
     examples: { type: [ExampleSchema], required: true, default: [] },
     hiddenTestCases: { type: [JsonTestCaseSchema], required: true, default: [] },
     limits: {

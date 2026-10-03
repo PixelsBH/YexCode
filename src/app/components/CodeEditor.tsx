@@ -60,6 +60,8 @@ type JudgeResult = {
   totalTestCases?: number;
   runtimeMs?: number;
   memoryMb?: number;
+  score?: number;
+  errorStage?: string;
   failedTestCase?: {
     id: number;
     args?: unknown[];

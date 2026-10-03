@@ -32,7 +32,7 @@ NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
 NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
 ```
 
-`JUDGE_BASE_URL` is used by the server-side proxy and is preferred to the legacy `NEXT_PUBLIC_JUDGE_BASE_URL` fallback. The browser should call YexCode's `/api/run` routes, not YexJudge directly.
+`JUDGE_BASE_URL` is required by the server-side proxy; add it to `.env.local` and restart the YexCode server after changing it. For a host-run Next.js app with the local Docker Compose judge, use `http://localhost:8080`. The browser should call YexCode's `/api/run` routes, not YexJudge directly.
 
 ## Start YexJudge
 
@@ -59,6 +59,7 @@ From the YexCode project root:
 
 ```bash
 bun install
+bun run validate:problems
 bun run seed:problems
 bun run dev
 ```
@@ -69,7 +70,7 @@ Open [http://localhost:3000](http://localhost:3000). The seeder reads `data/prob
 bun run seed:problems -- subsets
 ```
 
-The `Subsets` problem uses this targeted command. To seed another fixture, replace `subsets` with its slug. The script reports whether the record was inserted or updated.
+The `Subsets` problem uses this targeted command. To seed another fixture, replace `subsets` with its slug. The script reports whether the record was inserted or updated. Seeding replaces the selected problem's fixture-owned fields, including its test suite. These fixture writes are for local development only: fixtures contain development-only reference solutions, and the seeder refuses to run when `NODE_ENV=production`. For an existing local development database with curated hidden tests, use `bun run sync:problem-metadata -- --dry-run` and then `bun run sync:problem-metadata` to update topics, companies, hints, and private reference solutions without changing tests. Never point either script at production MongoDB.
 
 ## Useful commands
 

@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-
-const PAGE_SIZE = 8;
+import { useEffect, useState } from "react";
 
 function difficultyColor(difficulty: string) {
   switch (difficulty.toLowerCase()) {
@@ -22,96 +20,154 @@ type ProblemListItem = {
   slug: string;
   title: string;
   difficulty: string;
+  topics: string[];
 };
 
-export default function ProblemsTable({ problems }: { problems: ProblemListItem[] }) {
+type ProblemListResponse = {
+  items: ProblemListItem[];
+  topics: string[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+export default function ProblemsTable({ initialData }: { initialData: ProblemListResponse }) {
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [topic, setTopic] = useState("");
+  const [page, setPage] = useState(initialData.page);
+  const [data, setData] = useState(initialData);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const filtered = useMemo(() => {
-    return problems.filter((p) =>
-      p.title.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [search, problems]);
+  useEffect(() => {
+    const normalizedSearch = search.trim();
+    if (!normalizedSearch && !topic && page === initialData.page) {
+      setData(initialData);
+      setError(null);
+      setLoading(false);
+      return;
+    }
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+    const timer = window.setTimeout(async () => {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(initialData.pageSize) });
+      if (normalizedSearch) params.set("q", normalizedSearch);
+      if (topic) params.set("topic", topic);
 
-  const visible = filtered.slice(
-    (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE
-  );
+      try {
+        const response = await fetch(`/api/problems?${params}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(typeof result.error === "string" ? result.error : "Could not load problems.");
+        }
+        setData(result as ProblemListResponse);
+        setPage(result.page);
+      } catch (fetchError) {
+        if (controller.signal.aborted) return;
+        setError(fetchError instanceof Error ? fetchError.message : "Could not load problems.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }, normalizedSearch ? 200 : 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [initialData, page, search, topic]);
 
   return (
-    <div className="rounded-xl border border-white/10 bg-black/40 backdrop-blur-xl overflow-hidden">
-      <div className="p-4 border-b border-white/10">
-        <input
-          type="text"
-          placeholder="Search problems..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);}}
-          className="
-            w-full
-            bg-black/50
-            border border-white/15
-            rounded-md
-            px-4 py-2
-            text-sm text-white
-            placeholder:text-white/40
-            focus:outline-none
-            focus:ring-1 focus:ring-white/30
-          "/>
+    <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40 backdrop-blur-xl">
+      <div className="flex flex-col gap-3 border-b border-white/10 p-4 sm:flex-row">
+        <label className="flex-1">
+          <span className="sr-only">Search problems by title</span>
+          <input
+            type="search"
+            placeholder="Search problems..."
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            className="w-full rounded-md border border-white/15 bg-black/50 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
+          />
+        </label>
+        <label className="sm:w-64">
+          <span className="sr-only">Filter problems by topic</span>
+          <select
+            value={topic}
+            onChange={(event) => {
+              setTopic(event.target.value);
+              setPage(1);
+            }}
+            className="w-full rounded-md border border-white/15 bg-black/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/30"
+          >
+            <option value="">All topics</option>
+            {data.topics.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
       </div>
 
-      <div className="grid grid-cols-12 px-5 py-3 text-md font-bold text-white border-b border-white/10">
+      <div className="grid grid-cols-12 border-b border-white/10 px-5 py-3 text-md font-bold text-white">
         <div className="col-span-8">Title</div>
         <div className="col-span-4">Difficulty</div>
       </div>
 
-      <ul>
-        {visible.map((p) => (
-          <li key={p.slug} className="grid grid-cols-12 px-5 py-4 border-b border-white/5 hover:bg-white/5 transition">
+      <ul aria-busy={loading}>
+        {data.items.map((problem) => (
+          <li key={problem.slug} className="grid grid-cols-12 border-b border-white/5 px-5 py-4 transition hover:bg-white/5">
             <div className="col-span-8">
-              <Link href={`/problems/${p.slug}`} className="text-blue-500 text-sm hover:underline">
-                {p.title}
+              <Link href={`/problems/${problem.slug}`} className="text-sm text-blue-400 hover:underline">
+                {problem.title}
               </Link>
             </div>
-
             <div className="col-span-4">
-              <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${difficultyColor(p.difficulty)}`}>
-                {p.difficulty}
+              <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${difficultyColor(problem.difficulty)}`}>
+                {problem.difficulty}
               </span>
             </div>
           </li>
         ))}
 
-        {visible.length === 0 && (
-          <li className="px-5 py-8 text-center text-white/50">
-            No problems found
-          </li>
+        {data.items.length === 0 && (
+          <li className="px-5 py-8 text-center text-white/50">No problems found</li>
         )}
       </ul>
 
-      {totalPages > 1 && (
-        <div className="flex justify-between items-center px-5 py-4 border-t border-white/10">
-          <span className="text-sm text-white/50">
-            Page {page} of {totalPages}
-          </span>
-
-          <div className="flex gap-2">
-            <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}
-              className="px-3 py-1 text-sm rounded-md bg-white/10 text-white disabled:opacity-40">
+      <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm text-white/50" aria-live="polite">
+          {loading ? "Loading problems…" : `${data.total} problem${data.total === 1 ? "" : "s"} · Page ${data.page} of ${data.totalPages}`}
+          {error && <span className="ml-2 text-red-300">{error}</span>}
+        </div>
+        {data.totalPages > 1 && (
+          <nav aria-label="Problem list pages" className="flex gap-2">
+            <button
+              type="button"
+              aria-label="Previous page"
+              disabled={loading || page <= 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              className="rounded-md bg-white/10 px-3 py-1 text-sm text-white disabled:opacity-40"
+            >
               Prev
             </button>
-
-            <button disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}
-              className="px-3 py-1 text-sm rounded-md bg-white/10 text-white disabled:opacity-40">
+            <button
+              type="button"
+              aria-label="Next page"
+              disabled={loading || page >= data.totalPages}
+              onClick={() => setPage((current) => current + 1)}
+              className="rounded-md bg-white/10 px-3 py-1 text-sm text-white disabled:opacity-40"
+            >
               Next
             </button>
-          </div>
-        </div>
-      )}
+          </nav>
+        )}
+      </div>
     </div>
   );
 }

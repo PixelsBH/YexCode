@@ -17,6 +17,8 @@ type JudgeResult = {
   totalTestCases?: number;
   runtimeMs?: number;
   memoryMb?: number;
+  score?: number;
+  errorStage?: string;
   failedTestCase?: {
     id: number;
     args?: unknown[];
@@ -239,6 +241,8 @@ function RunPanel({
             {result.memoryMb !== undefined && result.memoryMb > 0 && (
               <MetricPill label="Memory" value={formatMemory(result.memoryMb)} />
             )}
+            {result.score !== undefined && <MetricPill label="Score" value={String(result.score)} />}
+            {result.errorStage && <MetricPill label="Stage" value={formatStatus(result.errorStage)} />}
           </div>
         </div>
       </div>
@@ -356,6 +360,8 @@ function SubmitPanel({ result, status }: { result: JudgeResult | null; status: s
           {result.memoryMb !== undefined && result.memoryMb > 0 && (
             <MetricPill label="Memory" value={formatMemory(result.memoryMb)} />
           )}
+          {result.score !== undefined && <MetricPill label="Score" value={String(result.score)} />}
+          {result.errorStage && <MetricPill label="Stage" value={formatStatus(result.errorStage)} />}
         </div>
       </div>
 
