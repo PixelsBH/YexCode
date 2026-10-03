@@ -1,72 +1,59 @@
 import mongoose from "mongoose";
 
-const TestCaseSchema = new mongoose.Schema({
-  id: { type: Number },
-  input: { type: String, required: true },
-  expectedOutput: { type: String, required: true }
-}, { _id: false });
-
-const ProblemSchema = new mongoose.Schema({
-  slug: { type: String, required: true, unique: true },
-  title: { type: String, required: true },
-  difficulty: { type: String, enum: ["Easy", "Medium", "Hard"], required: true },
-  category: { type: String, required: true },
-  
-  description: { type: String, required: true },
-  constraints: { type: [String], required: true },
-  
-  // Structured examples matching function parameters (similar to testCasesJson)
-  examples: [
-    {
-      id: { type: Number },
-      args: { type: mongoose.Schema.Types.Mixed },
-      expected: { type: mongoose.Schema.Types.Mixed },
-      explanation: { type: String },
-      _id: false
-    }
-  ],
-
-  testCases: { type: [TestCaseSchema], default: [] },
-
-  limits: {
-    timeLimitMs: { type: Number, default: 2000 },
-    memoryLimitMb: { type: Number, default: 128 },
+const JsonTestCaseSchema = new mongoose.Schema(
+  {
+    id: { type: Number, required: true },
+    args: { type: mongoose.Schema.Types.Mixed, required: true },
+    expected: { type: mongoose.Schema.Types.Mixed, required: true },
   },
+  { _id: false, strict: true }
+);
 
-  templates: {
-    cpp: { type: String, default: "" },
-    python: { type: String, default: "" },
-    java: { type: String, default: "" },
-    javascript: { type: String, default: "" },
-    c: { type: String, default: "" },
-    go: { type: String, default: "" },
+const ExampleSchema = new mongoose.Schema(
+  {
+    id: { type: Number, required: true },
+    args: { type: mongoose.Schema.Types.Mixed, required: true },
+    expected: { type: mongoose.Schema.Types.Mixed, required: true },
+    explanation: { type: String },
   },
+  { _id: false, strict: true }
+);
 
-  function: {
-    name: { type: String, default: "" },
-    returnType: { type: String, default: "" },
-    params: [
-      {
-        name: { type: String },
-        type: { type: String },
-        _id: false
-      }
-    ],
-    comparison: {
-      returnArrayOrder: { type: String, enum: ["unordered"] }
-    }
+const ProblemSchema = new mongoose.Schema(
+  {
+    schemaVersion: { type: Number, required: true, default: 1 },
+    slug: { type: String, required: true, unique: true, index: true },
+    title: { type: String, required: true },
+    difficulty: { type: String, enum: ["Easy", "Medium", "Hard"], required: true },
+    description: { type: String, required: true },
+    constraints: { type: [String], required: true, default: [] },
+    topics: { type: [String], required: true, default: [] },
+    companies: { type: [String], required: true, default: [] },
+    examples: { type: [ExampleSchema], required: true, default: [] },
+    hiddenTestCases: { type: [JsonTestCaseSchema], required: true, default: [] },
+    limits: {
+      timeLimitMs: { type: Number, required: true, default: 1000 },
+      memoryLimitMb: { type: Number, required: true, default: 128 },
+    },
+    templates: {
+      cpp: { type: String, default: "" },
+    },
+    function: {
+      name: { type: String, required: true },
+      returnType: { type: String, required: true },
+      params: [
+        {
+          name: { type: String, required: true },
+          type: { type: String, required: true },
+          _id: false,
+        },
+      ],
+      comparison: {
+        returnArrayOrder: { type: String, enum: ["unordered"] },
+      },
+    },
   },
-
-  testCasesJson: [
-    {
-      id: { type: Number },
-      args: { type: mongoose.Schema.Types.Mixed },
-      expected: { type: mongoose.Schema.Types.Mixed },
-      _id: false
-    }
-  ],
-
-  createdAt: { type: Date, default: Date.now }
-});
+  { timestamps: true, strict: true }
+);
 
 export default mongoose.models.Problem || mongoose.model("Problem", ProblemSchema);

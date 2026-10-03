@@ -6,7 +6,10 @@ export async function GET() {
   try {
     await dbConnect();
 
-    const problems = await Problem.find({});
+    const problems = await Problem.find({})
+      .select("slug title difficulty topics companies")
+      .sort({ title: 1 })
+      .lean();
 
     return NextResponse.json(problems, { status: 200 });
   } catch {

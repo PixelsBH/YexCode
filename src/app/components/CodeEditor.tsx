@@ -1,25 +1,19 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { Extension } from "@codemirror/state";
 
 import { githubLight } from "@uiw/codemirror-theme-github";
 import { dracula } from "@uiw/codemirror-theme-dracula";
 import { oneDark } from "@codemirror/theme-one-dark";
 
-import { javascript } from "@codemirror/lang-javascript";
 import { cpp } from "@codemirror/lang-cpp";
-import { python } from "@codemirror/lang-python";
-import { java } from "@codemirror/lang-java";
 import SubmissionPanel from "@/app/components/SubmissionPanel";
 
 let CodeMirrorWrapper: typeof import("@uiw/react-codemirror").default | null = null;
 
 const languageExtensions: Record<string, Extension> = {
-  JavaScript: javascript(),
   "C++": cpp(),
-  Python: python(),
-  Java: java(),
 };
 
 const themeMap: Record<string, Extension> = {
@@ -28,10 +22,6 @@ const themeMap: Record<string, Extension> = {
   Dark: oneDark,
 };
 
-type Limits = {
-  timeLimitMs: number;
-  memoryLimitMb: number;
-};
 
 type Templates = {
   cpp?: string;
@@ -63,11 +53,6 @@ type ExampleTestCase = {
   explanation?: string;
 };
 
-type TestCaseJson = {
-  id: number;
-  args: unknown[];
-  expected: unknown;
-};
 
 type JudgeResult = {
   status: string;
@@ -88,8 +73,8 @@ type JudgeResult = {
 type CodeEditorProps = {
   problemSlug: string;
   initialCode: string;
-  testCasesJson?: TestCaseJson[];
-  limits?: Limits;
+
+
   templates?: Templates;
   function?: FunctionMetadata;
   examples?: ExampleTestCase[];
@@ -103,8 +88,6 @@ const getDraftKey = (problemSlug: string, language: string) => {
 const CodeEditor: React.FC<CodeEditorProps> = ({
   problemSlug,
   initialCode,
-  testCasesJson = [],
-  limits = { timeLimitMs: 1000, memoryLimitMb: 128 },
   templates = {},
   function: functionMetadata,
   examples = [],
@@ -114,6 +97,10 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const mountedRef = useRef(false);
   const runPollRef = useRef<number | null>(null);
   const submitPollRef = useRef<number | null>(null);
+  const runAbortRef = useRef<AbortController | null>(null);
+  const submitAbortRef = useRef<AbortController | null>(null);
+  const runSequenceRef = useRef(0);
+  const submitSequenceRef = useRef(0);
 
   const [language, setLanguage] = useState("C++");
   const [theme, setTheme] = useState("Dark");
@@ -135,6 +122,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   useEffect(() => {
     mountedRef.current = true;
+    const runAbortControllerRef = runAbortRef;
+    const submitAbortControllerRef = submitAbortRef;
 
     import("@uiw/react-codemirror").then((mod) => {
       CodeMirrorWrapper = mod.default || mod;
@@ -145,6 +134,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       mountedRef.current = false;
       clearPoll(runPollRef);
       clearPoll(submitPollRef);
+      runAbortControllerRef.current?.abort();
+      submitAbortControllerRef.current?.abort();
     };
   }, []);
 
@@ -200,208 +191,199 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   /* ─── Polling helpers ─── */
 
-  const clearPoll = (ref: React.RefObject<number | null>) => {
-    if (ref.current) {
+  const clearPoll = (ref: { current: number | null }) => {
+    if (ref.current !== null) {
       window.clearTimeout(ref.current);
       ref.current = null;
     }
   };
 
-  const buildPayload = (testCases: { id: number; args: unknown[]; expected: unknown }[]) => {
-    const functionPayload = functionMetadata
-      ? {
-          name: functionMetadata.name,
-          returnType: functionMetadata.returnType,
-          params: functionMetadata.params.map(({ name, type }) => ({ name, type })),
-          ...(functionMetadata.comparison?.returnArrayOrder
-            ? { comparison: functionMetadata.comparison }
-            : {}),
-        }
-      : undefined;
-
-    const cleanedTestCases = testCases.map(({ id, args, expected }) => ({
-      id,
-      args,
-      expected,
-    }));
-
-    return {
-      language: language === "C++" ? "cpp" : language.toLowerCase(),
-      sourceCode: code,
-      testCases: cleanedTestCases,
-      limits,
-      ...(functionPayload ? { mode: "function", function: functionPayload } : {}),
-    };
-  };
-
-  const pollSubmission = useCallback(
-    (
-      id: string,
-      setStatus: (s: string) => void,
-      setResult: (r: JudgeResult | null) => void,
-      pollRef: React.RefObject<number | null>,
-    ) => {
-      const poll = async () => {
-        try {
-          const res = await fetch(`/api/run/${id}`);
-          if (!res.ok) {
-            const errData = await res.json().catch(() => null);
-            const msg =
-              (typeof errData?.error === "object" ? errData?.error?.message : errData?.error) ||
-              `Failed to check status (${res.status})`;
-            setResult({
-              status: "infrastructure_error",
-              errorMessage: msg,
-            });
-            setStatus("error");
-            return;
-          }
-
-          const data = await res.json();
-          setStatus(data.status || "unknown");
-
-          if (data.status === "queued" || data.status === "running") {
-            pollRef.current = window.setTimeout(poll, 1000);
-            return;
-          }
-
-          if (data.status === "finished") {
-            setResult(data.result || null);
-            setStatus("finished");
-            return;
-          }
-
-          if (data.status === "failed") {
-            const finalResult = data.result || {
-              status: "infrastructure_error",
-              errorMessage: data.failureMessage || "The judge could not process this submission.",
-            };
-            setResult(finalResult);
-            setStatus("failed");
-            return;
-          }
-
-          setStatus("error");
-          setResult({
-            status: "infrastructure_error",
-            errorMessage: `Unexpected submission status: ${data.status}`,
-          });
-        } catch (err) {
-          setStatus("error");
-          setResult({
-            status: "infrastructure_error",
-            errorMessage: err instanceof Error ? err.message : "Failed to communicate with the server",
-          });
-        }
-      };
-
-      poll();
-    },
-    [],
-  );
-
-  const submitToJudge = async (
-    testCases: { id: number; args: unknown[]; expected: unknown }[],
-    setStatus: (s: string) => void,
-    setResult: (r: JudgeResult | null) => void,
-    pollRef: React.RefObject<number | null>,
+  const pollSubmission = (
+    operation: "run" | "submit",
+    id: string,
+    setStatus: (status: string) => void,
+    setResult: (result: JudgeResult | null) => void,
+    pollRef: { current: number | null },
+    controller: AbortController,
+    requestId: string,
+    isCurrent: () => boolean,
   ) => {
-    clearPoll(pollRef);
-    setStatus("submitting");
-    setResult(null);
+    const resultUrl = operation === "run" ? `/api/run/${encodeURIComponent(id)}` : `/api/submissions/${encodeURIComponent(id)}`;
+    const abortRef = operation === "run" ? runAbortRef : submitAbortRef;
 
-    if (!functionMetadata) {
-      setResult({
-        status: "infrastructure_error",
-        errorMessage: "Missing function definition for this problem.",
-      });
-      setStatus("error");
-      return;
-    }
+    const finish = () => {
+      if (abortRef.current === controller) abortRef.current = null;
+    };
 
-    if (testCases.length === 0) {
-      setResult({
-        status: "infrastructure_error",
-        errorMessage: "No test cases provided.",
-      });
-      setStatus("error");
-      return;
-    }
+    const schedule = (attempt: number, delayMs: number) => {
+      pollRef.current = window.setTimeout(() => poll(attempt), delayMs);
+    };
 
-    const payload = buildPayload(testCases);
+    const poll = async (retryAttempt = 0) => {
+      if (!isCurrent()) return;
 
-    try {
-      const response = await fetch("/api/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      try {
+        const response = await fetch(resultUrl, {
+          headers: { "X-Request-ID": requestId },
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!isCurrent()) return;
 
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        const errorMsg =
-          (typeof data?.error === "object" ? data?.error?.message : data?.error) ||
-          data?.message ||
-          `Judge error (${response.status})`;
+        if (!response.ok) {
+          if ([502, 503, 504].includes(response.status) && retryAttempt < 3) {
+            schedule(retryAttempt + 1, 500 * 2 ** retryAttempt);
+            return;
+          }
+          const errorData = await response.json().catch(() => null);
+          const message = typeof errorData?.error === "string"
+            ? errorData.error
+            : errorData?.error?.message || `Could not check submission status (${response.status}).`;
+          setResult({ status: "infrastructure_error", errorMessage: message });
+          setStatus("error");
+          finish();
+          return;
+        }
+
+        const data = await response.json();
+        if (!isCurrent()) return;
+
+        if (data.status === "queued" || data.status === "running") {
+          setStatus(data.status);
+          schedule(0, 1000);
+          return;
+        }
+
+        if (data.status === "finished") {
+          setResult(data.result || {
+            status: "infrastructure_error",
+            errorMessage: "The judge finished without returning a result.",
+          });
+          setStatus("finished");
+          finish();
+          return;
+        }
+
+        if (data.status === "failed") {
+          setResult(data.result || {
+            status: "infrastructure_error",
+            errorMessage: "The judge could not process this submission.",
+          });
+          setStatus("failed");
+          finish();
+          return;
+        }
 
         setResult({
           status: "infrastructure_error",
-          errorMessage: errorMsg,
+          errorMessage: `Unexpected submission status: ${String(data.status || "unknown")}.`,
         });
         setStatus("error");
+        finish();
+      } catch {
+        if (controller.signal.aborted || !isCurrent()) return;
+        if (retryAttempt < 3) {
+          schedule(retryAttempt + 1, 500 * 2 ** retryAttempt);
+          return;
+        }
+        setResult({
+          status: "infrastructure_error",
+          errorMessage: "Could not reach YexCode to check this run. Please retry.",
+        });
+        setStatus("error");
+        finish();
+      }
+    };
+
+    void poll();
+  };
+
+  const execute = async (operation: "run" | "submit") => {
+    const isRun = operation === "run";
+    const pollRef = isRun ? runPollRef : submitPollRef;
+    const abortRef = isRun ? runAbortRef : submitAbortRef;
+    const sequenceRef = isRun ? runSequenceRef : submitSequenceRef;
+    const setStatus = isRun ? setRunStatus : setSubmitStatus;
+    const setResult = isRun ? setRunResult : setSubmitResult;
+    const endpoint = isRun ? "/api/run" : "/api/submissions";
+
+    clearPoll(pollRef);
+    abortRef.current?.abort();
+    const sequence = ++sequenceRef.current;
+    const controller = new AbortController();
+    const requestId = crypto.randomUUID();
+    abortRef.current = controller;
+    const isCurrent = () => mountedRef.current && sequenceRef.current === sequence;
+
+    setStatus("submitting");
+    setResult(null);
+    if (isRun) setActiveTab("run");
+    else setActiveTab("submit");
+
+    if (!functionMetadata) {
+      setResult({ status: "validation_error", errorMessage: "This problem has no Function Mode definition." });
+      setStatus("error");
+      abortRef.current = null;
+      return;
+    }
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Request-ID": requestId,
+        },
+        body: JSON.stringify({
+          slug: problemSlug,
+          language: "cpp",
+          sourceCode: code,
+        }),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!isCurrent()) return;
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = typeof data?.error === "string"
+          ? data.error
+          : data?.error?.message || data?.message || `Request failed (${response.status}).`;
+        setResult({ status: response.status === 400 ? "validation_error" : "infrastructure_error", errorMessage: message });
+        setStatus("error");
+        abortRef.current = null;
         return;
       }
 
       const id = data?.submissionId || data?.id;
-      if (!id) {
-        setResult({
-          status: "infrastructure_error",
-          errorMessage: data?.error || "Invalid response from judge (missing submission ID)",
-        });
+      if (typeof id !== "string" && typeof id !== "number") {
+        setResult({ status: "infrastructure_error", errorMessage: "The judge did not return a submission ID." });
         setStatus("error");
+        abortRef.current = null;
         return;
       }
 
-      setStatus(data.status || "queued");
-
-      if (data.status === "finished" || data.status === "failed") {
-        pollSubmission(String(id), setStatus, setResult, pollRef);
-      } else {
-        pollRef.current = window.setTimeout(
-          () => pollSubmission(String(id), setStatus, setResult, pollRef),
-          500,
-        );
-      }
-    } catch (err) {
+      const judgeStatus = typeof data.status === "string" ? data.status : "queued";
+      setStatus(judgeStatus);
+      pollRef.current = window.setTimeout(
+        () => pollSubmission(operation, String(id), setStatus, setResult, pollRef, controller, requestId, isCurrent),
+        judgeStatus === "finished" || judgeStatus === "failed" ? 0 : 500,
+      );
+    } catch {
+      if (controller.signal.aborted || !isCurrent()) return;
       setResult({
         status: "infrastructure_error",
-        errorMessage: err instanceof Error ? err.message : "Failed to connect to judge",
+        errorMessage: "Could not send code to YexCode. Please check your connection and retry.",
       });
       setStatus("error");
+      abortRef.current = null;
     }
   };
 
   /* ─── Handlers ─── */
 
-  const handleRun = () => {
-    setActiveTab("run");
-    const exampleTestCases = examples.map((ex, index) => ({
-      id: typeof ex.id === "number" ? ex.id : index + 1,
-      args: ex.args,
-      expected: ex.expected,
-    }));
-    submitToJudge(exampleTestCases, setRunStatus, setRunResult, runPollRef);
-  };
-
-  const handleSubmit = () => {
-    setActiveTab("submit");
-    const testCases = testCasesJson.map((tc, index) => ({
-      id: typeof tc.id === "number" ? tc.id : index + 1,
-      args: tc.args,
-      expected: tc.expected,
-    }));
-    submitToJudge(testCases, setSubmitStatus, setSubmitResult, submitPollRef);
-  };
+  const handleRun = () => execute("run");
+  const handleSubmit = () => execute("submit");
 
   const isRunBusy = runStatus === "submitting" || runStatus === "queued" || runStatus === "running";
   const isSubmitBusy = submitStatus === "submitting" || submitStatus === "queued" || submitStatus === "running";

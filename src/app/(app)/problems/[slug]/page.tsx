@@ -5,11 +5,10 @@ type Params = { slug: string };
 
 export default async function ProblemPage({ params }: { params: Params }) {
   const { slug } = await params;
-  console.log("Rendering ProblemPage for slug:", slug);
 
-  // Fetch problem data server-side
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/problems/${slug}`,
+    `${baseUrl}/api/problems/${slug}`,
     { cache: "no-store" }
   );
 
@@ -28,8 +27,6 @@ export default async function ProblemPage({ params }: { params: Params }) {
         <CodeEditor
           problemSlug={slug}
           initialCode={problem.templates?.cpp || "// Write your code here"}
-          testCasesJson={problem.testCasesJson}
-          limits={problem.limits}
           templates={problem.templates}
           function={problem.function}
           examples={problem.examples}

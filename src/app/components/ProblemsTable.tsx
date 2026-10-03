@@ -21,7 +21,6 @@ function difficultyColor(difficulty: string) {
 type ProblemListItem = {
   slug: string;
   title: string;
-  category: string;
   difficulty: string;
 };
 
@@ -66,25 +65,20 @@ export default function ProblemsTable({ problems }: { problems: ProblemListItem[
       </div>
 
       <div className="grid grid-cols-12 px-5 py-3 text-md font-bold text-white border-b border-white/10">
-        <div className="col-span-6">Title</div>
-        <div className="col-span-3">Category</div>
-        <div className="col-span-3">Difficulty</div>
+        <div className="col-span-8">Title</div>
+        <div className="col-span-4">Difficulty</div>
       </div>
 
       <ul>
         {visible.map((p) => (
           <li key={p.slug} className="grid grid-cols-12 px-5 py-4 border-b border-white/5 hover:bg-white/5 transition">
-            <div className="col-span-6">
+            <div className="col-span-8">
               <Link href={`/problems/${p.slug}`} className="text-blue-500 text-sm hover:underline">
                 {p.title}
               </Link>
             </div>
 
-            <div className="col-span-3 text-white/70 text-sm">
-              {p.category}
-            </div>
-
-            <div className="col-span-3">
+            <div className="col-span-4">
               <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${difficultyColor(p.difficulty)}`}>
                 {p.difficulty}
               </span>

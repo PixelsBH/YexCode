@@ -11,7 +11,11 @@ export async function GET(
 
     await dbConnect();
     
-    const problem = await Problem.findOne({ slug });
+    const problem = await Problem.findOne({ slug })
+      .select(
+        "schemaVersion slug title difficulty description constraints topics companies examples limits templates function"
+      )
+      .lean();
 
     if (!problem) {
       return NextResponse.json({ error: "Problem not found" }, { status: 404 });

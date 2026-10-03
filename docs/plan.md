@@ -35,19 +35,23 @@ Both fields may be empty. They are problem metadata, not execution inputs. The p
 
 A problem becomes solved only after a Submit operation passes every test case in the complete test suite. Passing visible examples with Run Code does not mark a problem as solved. For a logged-in user, the list and problem page will query the user's successful submissions to determine solved state.
 
+The profile will show each problem at most once. A problem is **Solved** if the user has any accepted submission for it; otherwise, it is **Attempted** if the user has submitted at least once. Repeated submissions must not create duplicate problem entries, and an accepted submission takes precedence over later failed attempts.
+
 ## Current baseline
 
 The current YexCode baseline provides:
 
 - MongoDB-backed problem pages and problem listing.
+- Versioned problem content with `topics`, `companies`, visible `examples`, and server-only `hiddenTestCases`.
 - C++ Function Mode templates and JSON test cases.
-- A server-side proxy from YexCode to YexJudge.
+- Separate server-side Run and Submit endpoints; Run uses examples only and Submit loads the complete suite from MongoDB.
 - Asynchronous submission polling through `queued`, `running`, and terminal states.
-- Verdict and failed-test rendering.
+- Verdict, pass-count, runtime, memory, and failed-test rendering.
+- Request IDs, bounded execution payloads, stale-request handling, and polling retries.
 - Device-local editor drafts stored in `localStorage`.
-- An idempotent Bun seed command for starter problems.
+- Idempotent seed and versioned-content migration commands.
 
-The current Run Code and Submit Code buttons still use the same test set. Separating them is the next execution milestone.
+Authenticated solved-state display and persisted submission ownership/history remain in Phase 4.
 
 ## Request and data flow
 
@@ -64,14 +68,23 @@ Run Code
     -> YexCode sends only examples to YexJudge
     <- visible-test result
 
+Benchmark
+    -> POST /api/benchmark { slug, language, sourceCode, testCases }
+    -> YexCode validates and sends only the caller-provided cases to YexJudge
+    <- per-case custom-test result (not a saved submission)
+
 Submit Code
     -> POST /api/submissions { slug, language, sourceCode }
-    -> YexCode authenticates the user and loads visible + hidden tests server-side
-    -> YexCode sends the complete test suite to YexJudge
-    <- final result and persisted user submission
+    -> YexCode authenticates/upserts the user and loads visible + hidden tests server-side
+    -> YexCode persists the user's submission and sends the complete suite to YexJudge
+    <- final result and updated user submission
+
+Submission history / profile
+    -> YexCode authenticates the request and scopes every database query to that user
+    <- own submissions, profile details, and deduplicated problem progress
 ```
 
-The browser may identify the problem and provide source code, but it must not provide the authoritative test-case list. This prevents a client from replacing hidden tests with easier inputs and prevents hidden test data from being exposed through the problem API.
+The browser may identify the problem and provide source code; the benchmark endpoint may also accept caller-authored cases. The browser must never provide the authoritative Submit test-case list: YexCode loads that complete suite server-side. This prevents a client from replacing hidden tests with easier inputs and prevents hidden test data from being exposed through the problem API.
 
 ## Problem content contract
 
@@ -132,19 +145,11 @@ Every function-style problem should use a versioned MongoDB document shape. The 
 - Templates must be `class Solution` implementations without a `main` function; YexJudge generates the driver.
 - Only use C++ metadata types currently supported by YexJudge. Add a judge runtime adapter before publishing a problem that needs a new type.
 - Keep limits within YexJudge's accepted range and use explicit values rather than relying on defaults.
-- Hidden test cases must never be returned by the public problem GET endpoint, embedded in browser props, or accepted from the browser as the source of truth.
+- Hidden test cases must never be returned by the public problem GET endpoint, embedded in browser props, or accepted from the browser as the source of truth for Submit.
 
 ### Migration from the current shape
 
-The current implementation uses `testCasesJson` for the execution cases and still has a legacy `category` field in the model/seed data. The planned migration is:
-
-1. Move visible executable cases into `examples` with `id`, `args`, and `expected`.
-2. Move non-public cases into `hiddenTestCases`.
-3. Remove the legacy `category` field from the model, fixture documents, and UI.
-4. Add `topics`, `companies`, and `schemaVersion`.
-5. Change the problem API to project out `hiddenTestCases`.
-6. Make the server-side Run/Submit payload builder choose the appropriate set.
-7. Keep compatibility handling only long enough to migrate existing two-sum and starter records.
+The current Atlas records and starter fixtures have been migrated to schema version 1. Run `bun run migrate:problems -- --dry-run` to validate existing records without writing, then `bun run migrate:problems` to apply the migration. The command validates every record before changing any, maps legacy `category` values to `topics`, derives structured visible examples from legacy display examples when possible, separates the remaining structured cases into `hiddenTestCases`, and removes the old fields. It refuses unsupported legacy cases rather than silently dropping them.
 
 ## Run Code behavior
 
@@ -157,7 +162,16 @@ Run Code is a visible-example check, not a real submission and never marks a pro
 - The UI displays visible passed count, visible total count, and runtime.
 - A visible wrong answer shows one failed visible case, including input, expected output, and actual output when available.
 - A compile, runtime, timeout, memory, output-limit, validation, or infrastructure error shows the stage and case where it occurred when known.
-- Run Code does not create a solved record. It may be retained as a short-lived execution record later, but it must not appear as a successful submission.
+- Run Code does not create a solved record or a persisted Submit history entry.
+
+The benchmark page also lets a user run their code against their own test cases:
+
+- Each case has JSON input matching the problem function parameters and a JSON expected output matching the return type.
+- Users can add, edit, and remove cases, then run the selected code against all cases in the benchmark.
+- YexCode validates payload shape and applies case-count, input-size, and request rate limits before calling YexJudge.
+- Only caller-provided cases are sent; benchmark requests never load or reveal hidden tests.
+- Results show per-case pass/fail, input, expected output, actual output when available, and aggregate passed / total counts.
+- Benchmark runs are not authoritative submissions: they do not affect solved/attempted state and are not saved in submission history.
 
 ## Submit behavior
 
@@ -177,10 +191,10 @@ Submit Code is the authoritative evaluation and is the only operation that can m
 
 The output panel should consistently display:
 
-- Operation: Run or Submit.
+- Operation: Run, Benchmark, or Submit.
 - Verdict: accepted, wrong answer, compilation error, runtime error, time limit exceeded, memory limit exceeded, output limit exceeded, validation error, or infrastructure error.
 - Progress: passed test cases / total test cases.
-- Runtime and memory when available.
+- Runtime and memory when available; score when provided by the judge.
 - Failed test case input, expected output, and actual output when available.
 - Error stage: request validation, compilation, sandbox startup, test-case execution, timeout, memory limit, output limit, result comparison, or infrastructure.
 - Test case ID/index when the failure is associated with a specific case.
@@ -188,27 +202,44 @@ The output panel should consistently display:
 
 Compilation errors have zero passed cases but still report the total number of cases. Runtime and resource errors report all cases that passed before the failure and the total suite size. If the judge cannot determine an exact count, the response must say so instead of displaying a misleading number.
 
-## User submission model and solved progress
+## Accounts, submissions, and solved progress
 
-YexCode will add a Mongoose model for authenticated user submissions. This is separate from YexJudge's execution storage: YexJudge remains the execution system of record, while YexCode stores ownership, history, and user-facing progress.
+YexCode will keep an application `User` collection in MongoDB for authenticated users' basic profile information and associate submissions with those records. The authentication provider (currently Clerk) remains responsible for credentials and sessions; YexCode must never store passwords. Create or refresh the database profile from trusted provider/session data when an authenticated user reaches an account-backed feature.
+
+A `User` document should contain at least:
+
+```text
+_id
+authProviderUserId       Clerk user ID, unique
+name
+email
+avatarUrl                optional
+createdAt
+updatedAt
+```
+
+Only basic information needed for the profile is stored. Profile reads and updates must be scoped to the authenticated user; never accept an arbitrary user ID as proof of identity.
+
+YexCode stores one `Submission` document for every Submit attempt, including compilation failures, wrong answers, and infrastructure failures. Create the record before dispatching the judge request, then update that same record as it moves through queued/running/terminal states. This is separate from YexJudge's execution storage: YexJudge remains responsible for execution, while YexCode stores ownership, source history, and user-facing progress.
 
 A planned `Submission` document should contain at least:
 
 ```text
 _id
-userId                 Clerk user ID
-problemId or problemSlug
-kind                   "submit" (and optionally "run" later)
+userId                    ObjectId reference to User
+problemSlug
+kind                      "submit"
 language
 sourceCode
 judgeSubmissionId
-status                 queued, running, finished, or failed
-verdict                accepted, wrong_answer, compilation_error, ...
+status                    queued, running, finished, or failed
+verdict                   accepted, wrong_answer, compilation_error, ...
+score                     optional judge score; do not infer a judge score if none exists
 passedTestCases
 totalTestCases
 runtimeMs
 memoryMb
-failedTestCase         sanitized user-facing failure data
+failedTestCase            sanitized user-facing failure data
 errorStage
 errorMessage
 createdAt
@@ -217,59 +248,68 @@ updatedAt
 
 Design requirements:
 
-- `userId` is always taken from the authenticated server session, never trusted from the request body.
-- Users can read only their own submissions.
-- Source code and result data must be protected by authorization checks.
-- The YexJudge ID is retained for correlation, but YexCode should not duplicate the judge queue or execution lifecycle unnecessarily.
-- A successful Submit creates the solved state for the user/problem pair.
-- The list can initially compute solved state with an indexed existence query for an accepted submission. A separate progress model or materialized status can be introduced if scale requires it.
-- Add indexes for `(userId, problemSlug, createdAt)` and accepted-submission lookups.
-- Submission history should show problem, verdict, language, runtime, pass count, and timestamp.
+- Resolve the authenticated provider ID to a `User` record on the server; derive `userId` from that record, never from the request body.
+- Every submission-history/detail query must filter by both the authenticated `userId` and, where applicable, `problemSlug` or submission ID. Return not-found/forbidden safely without leaking whether another user's submission exists.
+- Protect source code, profile data, and result details with authorization checks. Do not expose submissions through public problem/list responses.
+- Retain the YexJudge ID for correlation, but do not duplicate the judge queue or execution lifecycle unnecessarily.
+- A successful Submit creates solved state for the user/problem pair. A non-accepted Submit creates attempted state unless that user has any accepted submission for the problem.
+- Compute profile progress from submissions initially: one row per problem, with accepted taking precedence over any number of failed submissions. Add a separate progress collection only if scale requires it.
+- Add a unique index on `User.authProviderUserId`, an index on `(userId, problemSlug, createdAt)`, and indexes that support accepted-submission/progress lookups.
+- Submission history should show problem, verdict, language, score when available, runtime, memory, pass count, and timestamp. Selecting a history row shows that submission's saved source code and result.
 
 ## Implementation phases
 
-### Phase 1 — Reliable baseline
+### Phase 1 — Baseline verification
 
-- [x] Load a problem by slug from MongoDB.
-- [x] Render statement, examples, constraints, limits, and language template.
-- [x] Submit C++ Function Mode code through the YexCode server proxy.
-- [x] Poll and render YexJudge responses.
-- [x] Add device-local editor drafts with `localStorage`.
-- [x] Add starter problem data and an idempotent Bun seed command.
-- [ ] Test the real two-sum submission against a running YexJudge instance with Docker/Postgres.
-- [ ] Confirm all existing Atlas records use the supported function metadata and JSON shapes.
+- [x] Test the real two-sum submission against a running YexJudge instance with Docker/Postgres.
+- [x] Confirm all existing Atlas records use the supported function metadata and JSON shapes.
 
 ### Phase 2 — Problem metadata and list UX
 
-- [ ] Remove the legacy `category` field from the schema, seed data, API responses, and UI.
-- [ ] Add `topics: string[]` and `companies: string[]`, both allowed to be empty.
-- [ ] Add topic/company reveal controls on the problem page.
-- [ ] Change the problem list to show only title, difficulty, and logged-in solved state.
-- [ ] Add an authenticated solved-state lookup without exposing other users' submissions.
-- [ ] Migrate two-sum and starter records to the versioned content shape.
+- [x] Remove the legacy `category` field from the schema, seed data, API responses, and UI.
+- [x] Add `topics: string[]` and `companies: string[]`, both allowed to be empty.
+- [x] Add topic/company reveal controls on the problem page.
+- [x] Change the problem list to show only title and difficulty without a category column.
+- [x] Migrate two-sum and starter records to the versioned content shape.
+
+The solved-state column and authenticated lookup depend on the Phase 4 user/submission model and are tracked there.
 
 ### Phase 3 — Separate Run and Submit
 
-- [ ] Split visible `examples` from server-only `hiddenTestCases`.
-- [ ] Stop returning hidden cases from the public problem API.
-- [ ] Add server-side payload builders that load the problem by slug and choose visible or complete tests.
-- [ ] Define separate Run and Submit endpoint semantics and request validation.
-- [ ] Make Run Code evaluate examples only and never mark a problem solved.
-- [ ] Make Submit evaluate all cases and mark the problem solved only on a complete pass.
-- [ ] Add pass-count, total-count, runtime, and failure-location rendering.
-- [ ] Add cancellation and stale-request handling when a user runs/submits again or navigates away.
-- [ ] Add request IDs and user-friendly retry behavior for temporary judge outages.
+- [x] Split visible `examples` from server-only `hiddenTestCases`.
+- [x] Stop returning hidden cases from the public problem API.
+- [x] Add server-side payload builders that load the problem by slug and choose visible or complete tests.
+- [x] Define separate Run and Submit endpoint semantics and request validation.
+- [x] Make Run Code evaluate examples only and never mark a problem solved.
+- [x] Make Submit evaluate all cases and return Accepted only on a complete pass.
+- [x] Add pass-count, total-count, runtime, and failure-location rendering.
+- [x] Add cancellation and stale-request handling when a user runs/submits again or navigates away.
+- [x] Add request IDs and user-friendly retry behavior for temporary judge outages.
 
-### Phase 4 — Submission persistence and accounts
+### Phase 4 — Accounts, submissions, history, and profile
 
-- [ ] Create the YexCode `Submission` Mongoose model.
-- [ ] Associate every Submit operation with the authenticated Clerk user.
-- [ ] Persist submission status, verdict, pass counts, runtime, memory, failure details, and judge ID.
-- [ ] Add authorization-protected submission history endpoints and UI.
-- [ ] Add problem solved-state queries and progress tracking.
+- [ ] Create the YexCode `User` model with a unique authentication-provider ID and basic profile fields; do not store credentials.
+- [ ] Upsert/sync the user's basic profile from trusted authenticated provider data.
+- [ ] Create the `Submission` model and persist every Submit attempt, source code, status, verdict, score when available, pass counts, runtime, memory, failure details, and judge ID.
+- [ ] Associate submissions with the database user record; never accept ownership IDs from the client.
+- [ ] Add authenticated, paginated swubmission-history queries scoped to the current user and problem.
+- [ ] Add authenticated solved-state queries for the problem list and show each logged-in user's solved state there.
+- [ ] Add a switchable submission-history table/panel in the question workspace; selecting a row shows that user's saved code and result for that question.
+- [ ] Verify that history/detail endpoints cannot read another user's source or results, including by guessing IDs or changing slugs.
+- [ ] Add a profile page with the user's basic information and separate solved/attempted question lists.
+- [ ] Deduplicate profile questions by problem; solved takes precedence if any submission passed all test cases, otherwise any Submit attempt counts as attempted.
+- [ ] Add user/problem submission and accepted-progress indexes.
 - [ ] Add rate limiting, abuse controls, and payload-size safeguards at the website boundary.
 
-### Phase 5 — Judge contract extensions
+### Phase 5 — Custom benchmark tests
+
+- [ ] Add a benchmark page/workspace with editable test cases containing JSON input and expected output, plus add/remove controls.
+- [ ] Add a validated benchmark endpoint that runs only caller-provided cases against the selected code.
+- [ ] Display per-case pass/fail and aggregate counts, with expected and actual output when available.
+- [ ] Enforce test-count, payload-size, and rate limits; keep hidden problem tests server-only and out of benchmark responses.
+- [ ] Ensure benchmark runs do not create Submit records or affect solved/attempted progress.
+
+### Phase 6 — Judge contract extensions
 
 YexJudge changes are deferred until the YexCode Run/Submit contract is implemented and the exact response gap is measured. Likely extensions include:
 
@@ -282,7 +322,7 @@ YexJudge changes are deferred until the YexCode Run/Submit contract is implement
 
 No YexJudge change should expose problem visibility metadata or allow a client to select hidden tests. YexCode remains responsible for selecting which tests belong to Run and Submit.
 
-### Phase 6 — Problem authoring and quality
+### Phase 7 — Problem authoring and quality
 
 - [ ] Define a versioned content validation command before inserting records.
 - [ ] Add an admin-only create/edit workflow or reviewed import pipeline; do not expose unrestricted problem writes publicly.
@@ -291,7 +331,7 @@ No YexJudge change should expose problem visibility metadata or allow a client t
 - [ ] Add automated smoke submissions for each published problem/template.
 - [ ] Retire compatibility handling for the old string-based `testCases` format after migration.
 
-### Phase 7 — Languages and editor experience
+### Phase 8 — Languages and editor experience
 
 - [ ] Keep language choices aligned with YexJudge's actually supported modes; metadata-driven Function/Class Mode is currently C++-only.
 - [ ] Add language-specific templates and metadata only after the corresponding judge backend is available and tested.
@@ -299,12 +339,12 @@ No YexJudge change should expose problem visibility metadata or allow a client t
 - [ ] Add accessible labels and keyboard navigation for controls and output.
 - [ ] Keep device-local drafts separate by problem and language; add cloud-synced drafts only after account ownership rules are defined.
 
-### Phase 8 — Discovery and platform features
+### Phase 9 — Discovery and platform features
 
 - [ ] Add optional topic filtering and stable pagination without restoring category-based navigation.
 - [ ] Add problem status, curated learning paths, and progress views.
 - [ ] Add explanations, hints, solution discussions, and optional editorial content.
-- [ ] Add benchmark/analytics features after the basic submission path has production telemetry.
+- [ ] Add analytics features after the basic submission path has production telemetry.
 - [ ] Add leaderboards or contests only after identity, rate limits, and plagiarism/abuse policies are defined.
 
 ## Draft storage design
@@ -342,10 +382,14 @@ The current and future milestones should satisfy the following:
 5. Submit Code checks visible and hidden cases, reports complete-suite `passed / total`, and marks the problem solved only when every case passes.
 6. A wrong answer shows one failed case, which may be hidden, with expected and actual output when available.
 7. Compilation, runtime, timeout, memory, output-limit, validation, and infrastructure errors show the relevant stage and test case when known.
-8. A logged-in user can view their own submission history, and another user cannot access it.
-9. Device-local drafts restore correctly without being sent anywhere until Run or Submit is clicked.
-10. `bun run build` and the seed command complete successfully in a configured local environment.
-11. YexJudge remains unchanged until a tested response-contract gap requires an extension; any such extension is covered by judge tests.
+8. An authenticated user has a MongoDB profile record with basic provider-sourced information; YexCode does not store credentials.
+9. Every Submit attempt saves its source and result data, including score when available, runtime, memory, verdict, and test counts.
+10. A logged-in user can view their own submission history and saved code for a question; another user cannot access it, including by guessing submission IDs.
+11. The profile lists each attempted or solved question once; any accepted submission makes that question solved, otherwise a Submit attempt makes it attempted.
+12. The benchmark workspace accepts custom JSON inputs and expected outputs, reports per-case and aggregate results, and never runs hidden tests or changes submission progress.
+13. Device-local drafts restore correctly without being sent anywhere until Run, Benchmark, or Submit is clicked.
+14. `bun run build` and the seed command complete successfully in a configured local environment.
+15. YexJudge remains unchanged until a tested response-contract gap requires an extension; any such extension is covered by judge tests.
 
 ## Decisions to make later
 
@@ -353,8 +397,7 @@ These are intentionally deferred until the separated execution loop and submissi
 
 - Whether Run results should be stored at all or remain ephemeral.
 - Whether hidden failed inputs should always be shown verbatim or redacted for selected problem types.
-- Whether solved state should be derived from accepted submissions or maintained in a separate progress collection.
 - Whether problem content should live only in Atlas or also be versioned in Git and imported.
 - Which languages and problem modes YexCode will promise to users.
 - Whether YexCode should proxy all submission status requests or receive push/webhook events later.
-- What social, ranking, benchmark, and recommendation features are wanted beyond the practice loop.
+- What social, ranking, and recommendation features are wanted beyond the practice loop.

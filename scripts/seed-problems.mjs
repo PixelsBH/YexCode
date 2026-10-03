@@ -50,6 +50,7 @@ try {
       {
         $set: { ...problem, updatedAt: new Date() },
         $setOnInsert: { createdAt: new Date() },
+        $unset: { category: "", testCasesJson: "", testCases: "" },
       },
       { upsert: true }
     );

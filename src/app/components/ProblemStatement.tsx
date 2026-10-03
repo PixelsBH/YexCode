@@ -8,12 +8,12 @@ type ProblemExample = {
 
 type Problem = {
   title: string;
-  category: string;
   difficulty: string;
   description: string;
+  topics?: string[];
+  companies?: string[];
   examples?: ProblemExample[];
   constraints?: string[];
-  testCases?: Array<{ id: number; input: string; expectedOutput: string }>;
   limits?: { timeLimitMs: number; memoryLimitMb: number };
 };
 
@@ -37,12 +37,39 @@ export default function ProblemStatement({ problem }: ProblemStatementProps) {
   return (
     <div className="p-6 border rounded-lg shadow-md bg-neutral-800 border-white/60">
       <h1 className="text-2xl font-bold mb-2 text-white">{problem.title}</h1>
-      <div className="flex gap-4 mb-4">
-        <span className="text-white">{problem.category}</span>
-        <span className="text-white">{problem.difficulty}</span>
+      <div className="mb-4">
+        <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-sm text-white/80">
+          {problem.difficulty}
+        </span>
       </div>
 
       <p className="mb-4 text-white">{problem.description}</p>
+
+      {problem.topics && problem.topics.length > 0 && (
+        <details className="mb-3 rounded-md border border-white/10 bg-black/20 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-medium text-white/70">Topics</summary>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {problem.topics.map((topic) => (
+              <span key={topic} className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/70">
+                {topic}
+              </span>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {problem.companies && problem.companies.length > 0 && (
+        <details className="mb-4 rounded-md border border-white/10 bg-black/20 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-medium text-white/70">Companies</summary>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {problem.companies.map((company) => (
+              <span key={company} className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/70">
+                {company}
+              </span>
+            ))}
+          </div>
+        </details>
+      )}
 
       {problem.examples && problem.examples.length > 0 && (
         <div className="mb-4">

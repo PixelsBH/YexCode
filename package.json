@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ignore-pattern .next",
-    "seed:problems": "node scripts/seed-problems.mjs"
+    "seed:problems": "node scripts/seed-problems.mjs",
+    "migrate:problems": "node scripts/migrate-problems.mjs",
+    "smoke:two-sum": "node scripts/smoke-two-sum.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.34.0",
