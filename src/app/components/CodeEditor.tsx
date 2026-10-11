@@ -26,10 +26,7 @@ const themeMap: Record<string, Extension> = {
 type Templates = {
   cpp?: string;
   python?: string;
-  java?: string;
-  javascript?: string;
   c?: string;
-  go?: string;
 };
 
 type FunctionParam = {

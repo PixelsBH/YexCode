@@ -1,6 +1,6 @@
 # YexCode
 
-YexCode is a LeetCode-like coding practice website for browsing problems, writing solutions, and viewing judge results. It owns the web app and problem content; code is sent server-to-server to [YexJudge](../YexJudge), which executes submissions in isolated Docker sandboxes.
+YexCode is a LeetCode-like coding practice website for browsing problems, writing solutions, and viewing judge results. It owns the web app and problem content; code is sent server-to-server to [YexJudge](../YexJudge), which executes submissions in isolated Docker sandboxes. YexJudge supports C, C++, and Python execution; the current YexCode Run/Submit workflow supports C++ Function Mode.
 
 ## Requirements
 
@@ -9,7 +9,7 @@ YexCode is a LeetCode-like coding practice website for browsing problems, writin
 - Clerk credentials for authentication
 - A running YexJudge instance for Run Code and Submit Code
 
-For local execution, YexJudge can run with Docker Compose; Go and PostgreSQL do not need to be installed on the host. See [YexJudge setup](../YexJudge/README.md).
+For local execution, Docker Compose starts YexJudge and its PostgreSQL dependency; PostgreSQL does not need to be installed separately on the host. See [YexJudge setup](../YexJudge/README.md).
 
 ## Quickstart
 

@@ -7,7 +7,7 @@
 - Clerk application credentials for authentication
 - YexJudge running separately for code execution
 
-YexCode can display problems without YexJudge, but Run Code and Submit Code require a reachable judge. For local runs, YexJudge's Docker Compose setup provides the server and PostgreSQL; host Go and PostgreSQL are not required. See the [YexJudge README](../../YexJudge/README.md).
+YexCode can display problems without YexJudge, but Run Code and Submit Code require a reachable judge. For local runs, YexJudge's Docker Compose setup provides the server and PostgreSQL; PostgreSQL does not need to be installed separately on the host. See the [YexJudge README](../../YexJudge/README.md).
 
 ## Configure environment
 

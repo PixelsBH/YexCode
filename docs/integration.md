@@ -12,7 +12,7 @@ Run Code and Submit Code are separate server-side operations:
 
 Run is an examples check, not a saved submission. Submit currently evaluates the complete suite but does not yet persist user submissions or authenticate ownership; that is Feature 4 work. Custom benchmark tests are not implemented yet; the `/benchmark` page is currently a placeholder tracked in Feature 5.
 
-YexJudge currently supports metadata-driven Function and Class Mode in C++ only. Do not advertise other languages as LeetCode-style function submissions until their YexJudge backends exist.
+YexJudge supports C, C++, and Python for stdin/stdout execution, plus C++ and Python for metadata-driven Function and Class Mode. The current YexCode Run/Submit integration sends only C++ Function Mode submissions; the other judge-supported language and mode combinations are not yet wired into the web workspace.
 
 A Function Mode payload has this shape:
 

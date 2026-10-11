@@ -14,7 +14,7 @@ A problem is solved only after Submit passes the complete test suite. Run never 
 
 ## Implemented foundation
 
-Features 1–3 are complete: versioned problem content, examples-only Run, complete-suite Submit, async judge polling, request validation, and device-local editor drafts. Problem data migration and seeding commands are available. The editor currently supports C++ Function Mode.
+Features 1–3 are complete: versioned problem content, examples-only Run, complete-suite Submit, async judge polling, request validation, and device-local editor drafts. Problem data migration and seeding commands are available. YexJudge supports C, C++, and Python execution, with C++ and Python Function/Class Mode; YexCode currently supports C++ Function Mode only.
 
 For the implemented schema, judge flow, draft behavior, and setup, see [Problem data and YexJudge integration](integration.md) and [Local setup](setup.md). The `/benchmark` page remains a placeholder; custom test execution is Feature 5.
 
@@ -103,7 +103,7 @@ Remaining work:
 
 ### Feature 8 — Language and editor experience (deferred)
 
-This feature is intentionally deferred until YexJudge has additional language backends. Keep the editor C++-only; do not add unsupported language choices or templates. Device-local drafts and a clear-draft control are already implemented.
+This feature is intentionally deferred. Extend the editor and server request flow for the supported C, C++, and Python languages without offering language/mode combinations the judge cannot run. The current web workflow is C++ Function Mode; stdin/stdout execution and Python Function/Class Mode still need YexCode integration. Device-local drafts and a clear-draft control are already implemented.
 
 ## Remaining roadmap work
 
@@ -126,5 +126,4 @@ Implementation details for Features 6, 7, and 9, including current behavior and 
 
 - Whether hidden failed inputs should always be shown verbatim or redacted for selected problem types.
 - Whether problem content should live only in Atlas or also be versioned in Git and imported; fixtures are currently versioned in Git and seeded into MongoDB.
-- Which additional languages and problem modes YexCode will promise after C++ Function Mode.
 - What social, ranking, and recommendation features are wanted beyond the practice loop.
