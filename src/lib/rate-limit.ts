@@ -6,6 +6,7 @@ import type { NextRequest } from "next/server";
 
 const policies = {
   runCreateIp: { limit: 15, window: "1 m" },
+  benchmarkCreateIp: { limit: 8, window: "1 m" },
   submitCreateIp: { limit: 30, window: "1 m" },
   submitCreateUser: { limit: 5, window: "1 m" },
   pollIp: { limit: 600, window: "1 m" },

@@ -520,13 +520,14 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         {/* Editor */}
         <div
           ref={editorPaneRef}
-          className="min-h-[160px] overflow-auto"
+          className="problem-panel-scrollbar min-h-[160px] overflow-auto"
           style={{ flex: `${editorRatio} 1 0%` }}
         >
           {loaded && CodeMirrorWrapper ? (
             <CodeMirrorWrapper
               value={code}
               height={editorHeight > 0 ? `${editorHeight}px` : "100%"}
+              className="dark-code-scrollbar"
               theme={themeMap[theme]}
               extensions={[languageExtensions[language]]}
               onChange={(val: string) => setCode(val || "")}

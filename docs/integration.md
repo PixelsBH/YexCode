@@ -10,7 +10,7 @@ Run Code and Submit Code are separate server-side operations:
 4. YexCode polls the matching `/api/run/:id` or `/api/submissions/:id` route, which proxies status from YexJudge's `GET /submissions/{id}` endpoint.
 5. The editor displays the verdict, test counts, runtime, memory, and available failure details.
 
-Run is an examples check, not a saved submission. Submit currently evaluates the complete suite but does not yet persist user submissions or authenticate ownership; that is Feature 4 work. Custom benchmark tests are not implemented yet; the `/benchmark` page is currently a placeholder tracked in Feature 5.
+Run is an examples check, not a saved submission. Submit evaluates the complete suite and persists an authenticated user's source and result history. Custom benchmarks are separate from both: they send only the caller's JSON cases to YexJudge and never create a `Submission` record or affect progress.
 
 YexJudge supports C, C++, and Python for stdin/stdout execution, plus C++ and Python for metadata-driven Function and Class Mode. YexCode Run/Submit supports C++ and Python Function Mode; stdin/stdout and Class Mode are not yet wired into the web workspace.
 
@@ -38,6 +38,10 @@ A Function Mode payload has this shape:
   }
 }
 ```
+
+## Custom benchmark flow
+
+The `/benchmark` workspace is a standalone stdin/stdout runner for C++ and Python; it does not select or load a problem. Users provide source code and one or more editable cases containing raw stdin text and expected stdout. It sends `{ language, sourceCode, testCases: [{ id, input, expectedOutput }] }` to `POST /api/benchmark`. The endpoint validates and rate-limits the request, then forwards only those cases to YexJudge in `stdin` mode with the default execution limits. It does not query problem data, load or send visible or hidden problem tests, or write submission records. The endpoint accepts at most 50 cases and enforces the 1 MB request and 128 KB source limits. Results are polled through `GET /api/benchmark/:id`; per-case display is based on the caller's cases and the judge's aggregate result/failure details.
 
 ## Problem data
 

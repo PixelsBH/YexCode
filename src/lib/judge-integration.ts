@@ -8,6 +8,7 @@ import { getOrSyncUser } from "@/lib/auth-user";
 import { checkRateLimit, getClientIp, rateLimitIdentifier, type PolicyName } from "@/lib/rate-limit";
 import { ownedSubmissionFilter } from "@/lib/submission-access.mjs";
 import { MAX_REQUEST_BYTES, sourceCodeWithinLimit, readBoundedBody } from "@/lib/request-limits.mjs";
+import { normalizeBenchmarkTestCases } from "@/lib/benchmark-validation.mjs";
 import {
   normalizeJudgeError,
   normalizeSubmissionEnvelope,
@@ -18,18 +19,19 @@ const MAX_TEST_CASES = 500;
 const DEFAULT_LIMITS = { timeLimitMs: 1000, memoryLimitMb: 128 };
 
 type Operation = "run" | "submit";
-type JsonTestCase = { id: number; args: unknown[]; expected: unknown };
+type JsonFunctionTestCase = { id: number; args: unknown[]; expected: unknown };
+type JsonStdinTestCase = { id: number; input: string; expectedOutput: string };
 type JudgePayload = {
   language: "cpp" | "python";
-  mode: "function";
+  mode: "function" | "stdin";
   sourceCode: string;
-  function: {
+  function?: {
     name: string;
     returnType: string;
     params: Array<{ name: string; type: string }>;
     comparison?: { returnArrayOrder: "unordered" };
   };
-  testCases: JsonTestCase[];
+  testCases: Array<JsonFunctionTestCase | JsonStdinTestCase>;
   limits: { timeLimitMs: number; memoryLimitMb: number };
 };
 
@@ -46,7 +48,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function normalizeTestCase(value: unknown, label: string, expectedArgs: number): JsonTestCase {
+function normalizeTestCase(value: unknown, label: string, expectedArgs: number): JsonFunctionTestCase {
   if (!isRecord(value)) {
     throw new Error(`${label} is not a valid test case.`);
   }
@@ -155,6 +157,45 @@ async function buildJudgePayload(body: unknown, operation: Operation): Promise<J
     },
     testCases,
     limits: normalizeLimits(content.limits),
+  };
+}
+
+async function buildBenchmarkPayload(body: unknown): Promise<JudgePayload> {
+  if (!isRecord(body)) throw new RequestError("Request body must be a JSON object.", 400);
+  const allowedKeys = new Set(["language", "sourceCode", "testCases", "runOnly"]);
+  if (Object.keys(body).some((key) => !allowedKeys.has(key))) {
+    throw new RequestError("Only language, sourceCode, testCases, and runOnly may be provided.", 400);
+  }
+
+  const { language, sourceCode, testCases, runOnly } = body;
+  if (runOnly !== undefined && typeof runOnly !== "boolean") {
+    throw new RequestError("runOnly must be a boolean.", 400);
+  }
+  if (language !== "cpp" && language !== "python") {
+    throw new RequestError("Custom stdin/stdout benchmarks currently support C++ and Python only.", 400);
+  }
+  if (typeof sourceCode !== "string") throw new RequestError("sourceCode must be a string.", 400);
+  if (!sourceCodeWithinLimit(sourceCode)) {
+    throw new RequestError("Source code exceeds the 128 KB limit.", 413);
+  }
+
+  let normalizedTestCases;
+  try {
+    normalizedTestCases = normalizeBenchmarkTestCases(testCases);
+    if (runOnly) {
+      if (normalizedTestCases.length !== 1) throw new Error("A normal run must contain exactly one input case.");
+      normalizedTestCases[0].expectedOutput = `__YEX_RUN_OUTPUT_${randomUUID()}__`;
+    }
+  } catch (error) {
+    throw new RequestError(error instanceof Error ? error.message : "Custom test cases are invalid.", 400);
+  }
+
+  return {
+    language,
+    mode: "stdin",
+    sourceCode,
+    testCases: normalizedTestCases,
+    limits: DEFAULT_LIMITS,
   };
 }
 
@@ -361,7 +402,60 @@ function resultFields(result: Record<string, unknown>) {
   };
 }
 
-export async function getJudgeSubmission(request: NextRequest, id: string, operation: Operation = "run") {
+export async function createBenchmarkSubmission(request: NextRequest) {
+  const requestId = requestIdFor(request);
+  const ipLimitResponse = await rateLimitResponse(
+    "benchmarkCreateIp",
+    rateLimitIdentifier(getClientIp(request)),
+    requestId,
+  );
+  if (ipLimitResponse) return ipLimitResponse;
+
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (contentLength > MAX_REQUEST_BYTES) {
+    return errorResponse("Request body exceeds the 1 MB limit.", 413, requestId);
+  }
+  let raw: string | null;
+  try {
+    raw = await readBoundedBody(request.body, MAX_REQUEST_BYTES);
+  } catch {
+    return errorResponse("Request body could not be read.", 400, requestId);
+  }
+  if (raw === null) return errorResponse("Request body exceeds the 1 MB limit.", 413, requestId);
+
+  let body: unknown;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    return errorResponse("Request body must be valid JSON.", 400, requestId);
+  }
+
+  let payload: JudgePayload;
+  try {
+    payload = await buildBenchmarkPayload(body);
+  } catch (error) {
+    if (error instanceof RequestError) return errorResponse(error.message, error.status, requestId);
+    console.error("Unable to prepare YexJudge benchmark request", { requestId, error });
+    return errorResponse("Benchmark problem data is invalid or unavailable.", 500, requestId);
+  }
+
+  const submissionsUrl = getJudgeSubmissionsUrl();
+  if (!submissionsUrl) return errorResponse("YexJudge is not configured on the server.", 500, requestId);
+  try {
+    const response = await fetch(submissionsUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Request-ID": requestId },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+      signal: request.signal,
+    });
+    return judgeResponse(response, requestId, "create");
+  } catch {
+    return errorResponse("YexJudge is unavailable. Please retry shortly.", 502, requestId);
+  }
+}
+
+export async function getJudgeSubmission(request: NextRequest, id: string, operation: Operation | "benchmark" = "run") {
   const requestId = requestIdFor(request);
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
     return errorResponse("Invalid submission ID.", 400, requestId);

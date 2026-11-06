@@ -16,7 +16,7 @@ A problem is solved only after Submit passes the complete test suite. Run never 
 
 Features 1–4 are complete: versioned problem content, examples-only Run, complete-suite Submit, async judge polling, request validation, device-local editor drafts, accounts, submissions, history, and profile progress. Problem data migration and seeding commands are available. YexJudge supports C, C++, and Python execution, with C++ and Python Function/Class Mode; YexCode supports C++ and Python Function Mode.
 
-For the implemented schema, judge flow, draft behavior, and setup, see [Problem data and YexJudge integration](integration.md) and [Local setup](setup.md). The `/benchmark` page remains a placeholder; custom test execution is Feature 5.
+For the implemented schema, judge flow, draft behavior, and setup, see [Problem data and YexJudge integration](integration.md) and [Local setup](setup.md). The `/benchmark` page supports custom caller-provided tests without running hidden tests or affecting submission progress.
 
 ## Request flow
 
@@ -25,17 +25,17 @@ The browser calls YexCode and never knows the YexJudge host. It does not provide
 - **Problem page:** loads the statement, visible examples, topics, companies, hints, and C++ template from YexCode; Python starter code is generated from function metadata when a Python template is absent.
 - **Run:** sends `{ slug, language, sourceCode }`; YexCode loads visible examples and sends only those to YexJudge.
 - **Submit:** sends `{ slug, language, sourceCode }`; YexCode loads visible and hidden tests server-side, resolves the authenticated user, persists the attempt, and sends the complete suite to YexJudge.
-- **Custom benchmark:** Feature 5 will accept caller-provided test cases only; it will not create Submit records or affect progress.
+- **Custom benchmark:** Accepts caller-provided stdin/stdout test cases only; it does not load problem data, create Submit records, or affect progress.
 
 ## Features
 
 ### Feature 5 — Custom benchmark tests
 
-- [ ] Replace the current `/benchmark` placeholder with a workspace for editable JSON input/expected-output cases, plus add/remove controls.
-- [ ] Add a validated endpoint that runs only caller-provided cases against the selected code.
-- [ ] Display per-case pass/fail and aggregate counts, with expected and actual output when available.
-- [ ] Enforce test-count, payload-size, and rate limits; keep hidden tests server-only and out of benchmark responses.
-- [ ] Ensure benchmark runs do not create Submit records or affect solved/attempted progress.
+- [x] Replace the `/benchmark` placeholder with a standalone C++/Python stdin/stdout workspace with editable cases and add/remove controls.
+- [x] Add a validated endpoint that runs only caller-provided cases, without selecting or loading a problem.
+- [x] Display per-case pass/fail and aggregate counts, with expected and actual output when available.
+- [x] Enforce test-count, payload-size, and rate limits; keep hidden tests server-only and out of benchmark responses.
+- [x] Ensure benchmark runs do not create Submit records or affect solved/attempted progress.
 
 ### Feature 8 — Language and editor experience (partially implemented)
 
@@ -51,8 +51,7 @@ Implementation details for Features 6, 7, and 9, including current behavior and 
 
 ## Remaining acceptance criteria
 
-1. The benchmark workspace accepts custom JSON inputs and expected outputs, reports per-case and aggregate results, and never runs hidden tests or changes submission progress.
-2. If editorial/discussion features are pursued, enforce content review, ownership, and abuse controls before publication.
+1. If editorial/discussion features are pursued, enforce content review, ownership, and abuse controls before publication.
 
 ## Decisions to make later
 
