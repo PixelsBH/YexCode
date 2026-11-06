@@ -8,12 +8,17 @@ import { dracula } from "@uiw/codemirror-theme-dracula";
 import { oneDark } from "@codemirror/theme-one-dark";
 
 import { cpp } from "@codemirror/lang-cpp";
+import { python } from "@codemirror/lang-python";
 import SubmissionPanel from "@/app/components/SubmissionPanel";
+
 
 let CodeMirrorWrapper: typeof import("@uiw/react-codemirror").default | null = null;
 
-const languageExtensions: Record<string, Extension> = {
+type EditorLanguage = "C++" | "Python";
+
+const languageExtensions: Record<EditorLanguage, Extension> = {
   "C++": cpp(),
+  Python: python(),
 };
 
 const themeMap: Record<string, Extension> = {
@@ -42,6 +47,21 @@ type FunctionMetadata = {
     returnArrayOrder?: "unordered";
   };
 };
+
+function getLanguageTemplate(
+  language: EditorLanguage,
+  templates: Templates,
+  initialCode: string,
+  functionMetadata?: FunctionMetadata,
+): string {
+  const template = language === "C++" ? templates.cpp : templates.python;
+  if (template) return template;
+  if (language !== "Python") return initialCode;
+  if (!functionMetadata) return "from typing import List\n\n# Write your Python solution here\n";
+
+  const params = ["self", ...functionMetadata.params.map((param) => param.name)].join(", ");
+  return `class Solution:\n    def ${functionMetadata.name}(${params}):\n        pass\n`;
+}
 
 type ExampleTestCase = {
   id: number;
@@ -101,7 +121,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const runSequenceRef = useRef(0);
   const submitSequenceRef = useRef(0);
 
-  const [language, setLanguage] = useState("C++");
+  const [language, setLanguage] = useState<EditorLanguage>("C++");
   const [theme, setTheme] = useState("Dark");
 
   /* ─── Run state ─── */
@@ -114,6 +134,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   /* ─── Panel tab ─── */
   const [activeTab, setActiveTab] = useState<"run" | "submit">("run");
+
 
   /* ─── Draft state ─── */
   const [draftStatus, setDraftStatus] = useState<"loading" | "saved" | "template" | "unavailable">("loading");
@@ -140,8 +161,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   // Restore draft
   useEffect(() => {
-    const langKey = language === "C++" ? "cpp" : language.toLowerCase();
-    const template = templates[langKey as keyof Templates] || initialCode;
+    const template = getLanguageTemplate(language, templates, initialCode, functionMetadata);
     skipNextDraftSaveRef.current = true;
     setDraftStatus("loading");
 
@@ -153,7 +173,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       setCode(template);
       setDraftStatus("unavailable");
     }
-  }, [problemSlug, language, templates, initialCode]);
+  }, [problemSlug, language, templates, initialCode, functionMetadata]);
 
   // Debounced draft save
   useEffect(() => {
@@ -175,8 +195,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   }, [code, problemSlug, language]);
 
   const clearDraft = () => {
-    const langKey = language === "C++" ? "cpp" : language.toLowerCase();
-    const template = templates[langKey as keyof Templates] || initialCode;
+    const template = getLanguageTemplate(language, templates, initialCode, functionMetadata);
 
     try {
       window.localStorage.removeItem(getDraftKey(problemSlug, language));
@@ -335,7 +354,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         },
         body: JSON.stringify({
           slug: problemSlug,
-          language: "cpp",
+          language: language === "C++" ? "cpp" : "python",
           sourceCode: code,
         }),
         cache: "no-store",
@@ -407,7 +426,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           {/* Language Select */}
           <select
             value={language}
-            onChange={(e) => setLanguage(e.target.value)}
+            onChange={(e) => setLanguage(e.target.value as EditorLanguage)}
             className="bg-black/50 border border-white/15 text-white text-sm rounded-md px-3 py-1.5"
           >
             {Object.keys(languageExtensions).map((lang) => (
@@ -480,6 +499,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           submitStatus={submitStatus}
         />
       </div>
+
     </div>
   );
 };

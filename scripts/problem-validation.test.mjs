@@ -9,6 +9,18 @@ test("all checked-in problem fixtures satisfy the versioned content contract", (
   assert.deepEqual(validateProblems(fixtures), []);
 });
 
+test("validator accepts an optional Python Function Mode template", () => {
+  const withPythonTemplate = structuredClone(fixtures.slice(0, 1));
+  withPythonTemplate[0].templates.python = "class Solution:\\n    def isValid(self, s):\\n        pass";
+  assert.deepEqual(validateProblems(withPythonTemplate), []);
+});
+
+test("validator catches malformed Python templates", () => {
+  const invalid = structuredClone(fixtures.slice(0, 1));
+  invalid[0].templates.python = "def isValid(s):\\n    pass";
+  assert.match(validateProblems(invalid).join("\\n"), /templates.python must define a method on class Solution/);
+});
+
 test("validator catches duplicate slugs, duplicate case IDs, bad argument types, and missing references", () => {
   const invalid = structuredClone(fixtures.slice(0, 1));
   invalid.push(structuredClone(invalid[0]));

@@ -14,7 +14,7 @@ A problem is solved only after Submit passes the complete test suite. Run never 
 
 ## Implemented foundation
 
-Features 1–3 are complete: versioned problem content, examples-only Run, complete-suite Submit, async judge polling, request validation, and device-local editor drafts. Problem data migration and seeding commands are available. YexJudge supports C, C++, and Python execution, with C++ and Python Function/Class Mode; YexCode currently supports C++ Function Mode only.
+Features 1–3 are complete: versioned problem content, examples-only Run, complete-suite Submit, async judge polling, request validation, and device-local editor drafts. Problem data migration and seeding commands are available. YexJudge supports C, C++, and Python execution, with C++ and Python Function/Class Mode; YexCode supports C++ and Python Function Mode.
 
 For the implemented schema, judge flow, draft behavior, and setup, see [Problem data and YexJudge integration](integration.md) and [Local setup](setup.md). The `/benchmark` page remains a placeholder; custom test execution is Feature 5.
 
@@ -22,7 +22,7 @@ For the implemented schema, judge flow, draft behavior, and setup, see [Problem 
 
 The browser calls YexCode and never knows the YexJudge host. It does not provide authoritative Submit test cases.
 
-- **Problem page:** loads the statement, visible examples, topics, companies, hints, and C++ template from YexCode.
+- **Problem page:** loads the statement, visible examples, topics, companies, hints, and C++ template from YexCode; Python starter code is generated from function metadata when a Python template is absent.
 - **Run:** sends `{ slug, language, sourceCode }`; YexCode loads visible examples and sends only those to YexJudge.
 - **Submit:** sends `{ slug, language, sourceCode }`; YexCode loads visible and hidden tests server-side and sends the complete suite to YexJudge. Authentication, ownership, and persistence are Feature 4.
 - **Custom benchmark:** Feature 5 will accept caller-provided test cases only; it will not create Submit records or affect progress.
@@ -101,9 +101,9 @@ Remaining work:
 - [ ] Enforce test-count, payload-size, and rate limits; keep hidden tests server-only and out of benchmark responses.
 - [ ] Ensure benchmark runs do not create Submit records or affect solved/attempted progress.
 
-### Feature 8 — Language and editor experience (deferred)
+### Feature 8 — Language and editor experience (partially implemented)
 
-This feature is intentionally deferred. Extend the editor and server request flow for the supported C, C++, and Python languages without offering language/mode combinations the judge cannot run. The current web workflow is C++ Function Mode; stdin/stdout execution and Python Function/Class Mode still need YexCode integration. Device-local drafts and a clear-draft control are already implemented.
+The editor and server request flow support C++ and Python Function Mode, with separate device-local drafts and language-specific editor highlighting. Remaining work is to wire stdin/stdout and Class Mode into the web workspace and expose only combinations supported by YexJudge. Device-local drafts and a clear-draft control are already implemented.
 
 ## Remaining roadmap work
 

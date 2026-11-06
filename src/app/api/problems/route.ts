@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Problem from "@/models/Problem";
+import Submission from "@/models/Submission";
+import { getOrSyncUser } from "@/lib/auth-user";
 
 const DEFAULT_PAGE_SIZE = 8;
 const MAX_PAGE_SIZE = 50;
@@ -38,10 +40,11 @@ export async function GET(request: NextRequest) {
 
   try {
     await dbConnect();
+    const user = await getOrSyncUser();
     const total = await Problem.countDocuments(filter);
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const page = Math.min(requestedPage, totalPages);
-    const [items, topicValues] = await Promise.all([
+    const [items, topicValues, solvedSlugs] = await Promise.all([
       Problem.find(filter)
         .select("slug title difficulty topics")
         .sort({ title: 1, slug: 1 })
@@ -49,12 +52,14 @@ export async function GET(request: NextRequest) {
         .limit(pageSize)
         .lean(),
       Problem.distinct("topics"),
+      user ? Submission.distinct("problemSlug", { userId: user._id, verdict: "accepted" }) : Promise.resolve([]),
     ]);
+    const solved = new Set(solvedSlugs);
     const topics = topicValues
       .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
       .sort((left, right) => left.localeCompare(right));
 
-    return NextResponse.json({ items, topics, page, pageSize, total, totalPages }, {
+    return NextResponse.json({ items: items.map((item) => ({ ...item, solved: solved.has(item.slug) })), topics, page, pageSize, total, totalPages }, {
       status: 200,
       headers: { "Cache-Control": "no-store" },
     });

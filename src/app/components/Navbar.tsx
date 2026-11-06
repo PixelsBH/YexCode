@@ -55,6 +55,7 @@ export default function Navbar() {
             </SignedOut>
 
             <SignedIn>
+              <Link href="/profile" className="liquid-glass-link">Profile</Link>
               <UserButton />
             </SignedIn>
           </div>

@@ -195,7 +195,8 @@
     ],
     "limits": { "timeLimitMs": 1000, "memoryLimitMb": 128 },
     "templates": {
-      "cpp": "class Solution {\npublic:\n    vector<int> twoSum(vector<int>& nums, int target) {\n        return {};\n    }\n};"
+      "cpp": "class Solution {\npublic:\n    vector<int> twoSum(vector<int>& nums, int target) {\n        return {};\n    }\n};",
+      "python": "class Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        pass"
     },
     "function": {
       "name": "twoSum",

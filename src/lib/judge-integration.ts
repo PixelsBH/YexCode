@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Problem from "@/models/Problem";
+import Submission from "@/models/Submission";
+import { getOrSyncUser } from "@/lib/auth-user";
 import {
   normalizeJudgeError,
   normalizeSubmissionEnvelope,
@@ -16,7 +18,7 @@ const DEFAULT_LIMITS = { timeLimitMs: 1000, memoryLimitMb: 128 };
 type Operation = "run" | "submit";
 type JsonTestCase = { id: number; args: unknown[]; expected: unknown };
 type JudgePayload = {
-  language: "cpp";
+  language: "cpp" | "python";
   mode: "function";
   sourceCode: string;
   function: {
@@ -84,8 +86,8 @@ async function buildJudgePayload(body: unknown, operation: Operation): Promise<J
   if (typeof slug !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 100) {
     throw new RequestError("A valid problem slug is required.", 400);
   }
-  if (language !== "cpp") {
-    throw new RequestError("Function Mode currently supports C++ only.", 400);
+  if (language !== "cpp" && language !== "python") {
+    throw new RequestError("Function Mode currently supports C++ and Python only.", 400);
   }
   if (typeof sourceCode !== "string") {
     throw new RequestError("sourceCode must be a string.", 400);
@@ -140,7 +142,7 @@ async function buildJudgePayload(body: unknown, operation: Operation): Promise<J
     : undefined;
 
   return {
-    language: "cpp",
+    language,
     mode: "function",
     sourceCode,
     function: {
@@ -266,8 +268,23 @@ export async function createJudgeSubmission(request: NextRequest, operation: Ope
     return errorResponse("Problem execution data is invalid or unavailable.", 500, requestId);
   }
 
+  let savedSubmission: { _id: unknown } | null = null;
+  if (operation === "submit") {
+    const user = await getOrSyncUser();
+    if (!user) return errorResponse("Sign in to submit solutions.", 401, requestId);
+    savedSubmission = await Submission.create({
+      userId: user._id,
+      problemSlug: (body as Record<string, unknown>).slug,
+      kind: "submit",
+      language: payload.language,
+      sourceCode: payload.sourceCode,
+      status: "queued",
+    });
+  }
+
   const submissionsUrl = getJudgeSubmissionsUrl();
   if (!submissionsUrl) {
+    if (savedSubmission) await Submission.updateOne({ _id: savedSubmission._id }, { $set: { status: "failed", verdict: "infrastructure_error", errorStage: "infrastructure", errorMessage: "YexJudge is not configured on the server." } });
     return errorResponse("YexJudge is not configured on the server.", 500, requestId);
   }
 
@@ -279,16 +296,52 @@ export async function createJudgeSubmission(request: NextRequest, operation: Ope
       cache: "no-store",
       signal: request.signal,
     });
-    return judgeResponse(response, requestId, "create");
+    const result = await judgeResponse(response, requestId, "create");
+    if (savedSubmission) {
+      const body = await result.clone().json().catch(() => null) as { submissionId?: string; status?: string; result?: Record<string, unknown>; error?: { message?: string } } | null;
+      if (result.ok && body?.submissionId) {
+        const state = body.status === "finished" ? "finished" : body.status === "failed" ? "failed" : body.status;
+        const update: Record<string, unknown> = { judgeSubmissionId: body.submissionId, status: state };
+        if (body.result) Object.assign(update, resultFields(body.result));
+        await Submission.updateOne({ _id: savedSubmission._id }, { $set: update });
+      } else {
+        const message = body?.error?.message || "YexJudge could not process the submission.";
+        await Submission.updateOne({ _id: savedSubmission._id }, { $set: { status: "failed", verdict: "infrastructure_error", errorStage: "infrastructure", errorMessage: String(message).slice(0, 8192) } });
+      }
+    }
+    return result;
   } catch {
+    if (savedSubmission) await Submission.updateOne({ _id: savedSubmission._id }, { $set: { status: "failed", verdict: "infrastructure_error", errorStage: "infrastructure", errorMessage: "YexJudge is unavailable. Please retry shortly." } });
     return errorResponse("YexJudge is unavailable. Please retry shortly.", 502, requestId);
   }
 }
 
-export async function getJudgeSubmission(request: NextRequest, id: string) {
+function resultFields(result: Record<string, unknown>) {
+  return {
+    verdict: result.status,
+    ...(typeof result.score === "number" ? { score: result.score } : {}),
+    passedTestCases: result.passedTestCases,
+    totalTestCases: result.totalTestCases,
+    runtimeMs: result.runtimeMs,
+    memoryMb: result.memoryMb,
+    failedTestCase: result.failedTestCase,
+    errorStage: result.errorStage,
+    errorMessage: result.errorMessage,
+  };
+}
+
+export async function getJudgeSubmission(request: NextRequest, id: string, operation: Operation = "run") {
   const requestId = requestIdFor(request);
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
     return errorResponse("Invalid submission ID.", 400, requestId);
+  }
+
+  let ownedSubmission: { _id: unknown } | null = null;
+  if (operation === "submit") {
+    const user = await getOrSyncUser();
+    if (!user) return errorResponse("Sign in to view this submission.", 401, requestId);
+    ownedSubmission = await Submission.findOne({ userId: user._id, judgeSubmissionId: id }).select("_id").lean() as unknown as { _id: unknown } | null;
+    if (!ownedSubmission) return errorResponse("Submission not found.", 404, requestId);
   }
 
   const submissionsUrl = getJudgeSubmissionsUrl();
@@ -302,7 +355,14 @@ export async function getJudgeSubmission(request: NextRequest, id: string) {
       headers: { "X-Request-ID": requestId },
       signal: request.signal,
     });
-    return judgeResponse(response, requestId, "poll");
+    const result = await judgeResponse(response, requestId, "poll");
+    if (ownedSubmission && result.ok) {
+      const body = await result.clone().json().catch(() => null) as { status?: string; result?: Record<string, unknown> } | null;
+      const update: Record<string, unknown> = { status: body?.status };
+      if (body?.result) Object.assign(update, resultFields(body.result));
+      await Submission.updateOne({ _id: ownedSubmission._id }, { $set: update });
+    }
+    return result;
   } catch {
     return errorResponse("YexJudge is unavailable. Please retry shortly.", 502, requestId);
   }

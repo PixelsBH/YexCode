@@ -166,6 +166,11 @@ export function validateProblems(problems) {
       !/\bclass\s+Solution\b/.test(problem.templates.cpp) || /\bmain\s*\(/.test(problem.templates.cpp)) {
       errors.push(`${label}.templates.cpp must be a class Solution template without main().`);
     }
+    if (isRecord(problem.templates) && problem.templates.python !== undefined &&
+      (typeof problem.templates.python !== "string" || !/\bclass\s+Solution\b/.test(problem.templates.python) ||
+        !/\bdef\s+[A-Za-z_]\w*\s*\(/.test(problem.templates.python))) {
+      errors.push(`${label}.templates.python must define a method on class Solution.`);
+    }
     if (!isRecord(problem.referenceSolution) || typeof problem.referenceSolution.cpp !== "string" ||
       !/\bclass\s+Solution\b/.test(problem.referenceSolution.cpp) || /\bmain\s*\(/.test(problem.referenceSolution.cpp)) {
       errors.push(`${label}.referenceSolution.cpp must be a class Solution implementation without main().`);

@@ -1,4 +1,4 @@
-  import ProblemStatement from "@/app/components/ProblemStatement";
+import ProblemWorkspaceTabs from "@/app/components/ProblemWorkspaceTabs";
 import CodeEditor from "@/app/components/CodeEditor";
 
 type Params = { slug: string };
@@ -20,8 +20,8 @@ export default async function ProblemPage({ params }: { params: Params }) {
 
   return (
     <div className="grid grid-cols-2 gap-4 h-screen">
-      <div className="overflow-y-auto p-2">
-        <ProblemStatement problem={problem} />
+      <div className="min-h-0 p-2">
+        <ProblemWorkspaceTabs problem={problem} problemSlug={slug} />
       </div>
       <div className="flex flex-col p-2">
         <CodeEditor

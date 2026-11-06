@@ -41,6 +41,7 @@ const ProblemSchema = new mongoose.Schema(
     },
     templates: {
       cpp: { type: String, default: "" },
+      python: { type: String, default: "" },
     },
     function: {
       name: { type: String, required: true },

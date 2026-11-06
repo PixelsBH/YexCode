@@ -21,6 +21,7 @@ type ProblemListItem = {
   title: string;
   difficulty: string;
   topics: string[];
+  solved?: boolean;
 };
 
 type ProblemListResponse = {
@@ -42,12 +43,6 @@ export default function ProblemsTable({ initialData }: { initialData: ProblemLis
 
   useEffect(() => {
     const normalizedSearch = search.trim();
-    if (!normalizedSearch && !topic && page === initialData.page) {
-      setData(initialData);
-      setError(null);
-      setLoading(false);
-      return;
-    }
 
     const controller = new AbortController();
     setLoading(true);
@@ -115,22 +110,26 @@ export default function ProblemsTable({ initialData }: { initialData: ProblemLis
       </div>
 
       <div className="grid grid-cols-12 border-b border-white/10 px-5 py-3 text-md font-bold text-white">
-        <div className="col-span-8">Title</div>
-        <div className="col-span-4">Difficulty</div>
+        <div className="col-span-7">Title</div>
+        <div className="col-span-3">Difficulty</div>
+        <div className="col-span-2 text-right">Progress</div>
       </div>
 
       <ul aria-busy={loading}>
         {data.items.map((problem) => (
           <li key={problem.slug} className="grid grid-cols-12 border-b border-white/5 px-5 py-4 transition hover:bg-white/5">
-            <div className="col-span-8">
+            <div className="col-span-7">
               <Link href={`/problems/${problem.slug}`} className="text-sm text-blue-400 hover:underline">
                 {problem.title}
               </Link>
             </div>
-            <div className="col-span-4">
+            <div className="col-span-3">
               <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${difficultyColor(problem.difficulty)}`}>
                 {problem.difficulty}
               </span>
+            </div>
+            <div className="col-span-2 text-right text-xs">
+              {problem.solved ? <span className="text-green-400">Solved</span> : <span className="text-white/25">—</span>}
             </div>
           </li>
         ))}

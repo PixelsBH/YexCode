@@ -4,7 +4,7 @@ Reference notes for completed and partially completed roadmap work. Keep actiona
 
 ## Stable judge result contract (Feature 6 — implemented)
 
-YexJudge's existing response includes a verdict, passed/total test counts, runtime and memory when available, and failed-case data with an ID. YexCode validates and normalizes the submission response, rejects inconsistent counts/statuses/failure locations, bounds error payloads, derives a stable `errorStage` from the verdict, and renders available stage and score details. No YexJudge change was needed for the current C++ Function Mode contract.
+YexJudge's existing response includes a verdict, passed/total test counts, runtime and memory when available, and failed-case data with an ID. YexCode validates and normalizes the submission response, rejects inconsistent counts/statuses/failure locations, bounds error payloads, derives a stable `errorStage` from the verdict, and renders available stage and score details. The same result contract supports both C++ and Python Function Mode.
 
 The judge stops after the first failing case. `passedTestCases` counts the leading cases that passed; `totalTestCases` remains the full suite size. Execution does not continue after a failure.
 
