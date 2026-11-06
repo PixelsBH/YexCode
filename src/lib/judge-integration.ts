@@ -6,13 +6,14 @@ import Problem from "@/models/Problem";
 import Submission from "@/models/Submission";
 import { getOrSyncUser } from "@/lib/auth-user";
 import { checkRateLimit, getClientIp, rateLimitIdentifier, type PolicyName } from "@/lib/rate-limit";
+import { ownedSubmissionFilter } from "@/lib/submission-access.mjs";
+import { MAX_REQUEST_BYTES, sourceCodeWithinLimit, readBoundedBody } from "@/lib/request-limits.mjs";
 import {
   normalizeJudgeError,
   normalizeSubmissionEnvelope,
 } from "@/lib/judge-contract.mjs";
 
-const MAX_REQUEST_BYTES = 1024 * 1024;
-const MAX_SOURCE_BYTES = 128 * 1024;
+
 const MAX_TEST_CASES = 500;
 const DEFAULT_LIMITS = { timeLimitMs: 1000, memoryLimitMb: 128 };
 
@@ -93,7 +94,7 @@ async function buildJudgePayload(body: unknown, operation: Operation): Promise<J
   if (typeof sourceCode !== "string") {
     throw new RequestError("sourceCode must be a string.", 400);
   }
-  if (Buffer.byteLength(sourceCode, "utf8") > MAX_SOURCE_BYTES) {
+  if (!sourceCodeWithinLimit(sourceCode)) {
     throw new RequestError("Source code exceeds the 128 KB limit.", 413);
   }
 
@@ -216,28 +217,6 @@ function getJudgeSubmissionsUrl(): string | null {
   return base.endsWith("/submissions") ? base : `${base}/submissions`;
 }
 
-async function readBoundedBody(stream: ReadableStream<Uint8Array> | null, maxBytes: number): Promise<string | null> {
-  const reader = stream?.getReader();
-  if (!reader) return "";
-
-  const chunks: Buffer[] = [];
-  let totalBytes = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      totalBytes += value.byteLength;
-      if (totalBytes > maxBytes) {
-        await reader.cancel();
-        return null;
-      }
-      chunks.push(Buffer.from(value));
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  return Buffer.concat(chunks, totalBytes).toString("utf8");
-}
 
 async function judgeResponse(response: Response, requestId: string, kind: "create" | "poll") {
   const headers = new Headers({
@@ -397,7 +376,7 @@ export async function getJudgeSubmission(request: NextRequest, id: string, opera
       return errorResponse("Could not verify your account. Please retry.", 500, requestId);
     }
     if (!pollUser) return errorResponse("Sign in to view this submission.", 401, requestId);
-    ownedSubmission = await Submission.findOne({ userId: pollUser._id, judgeSubmissionId: id }).select("_id").lean() as unknown as { _id: unknown } | null;
+    ownedSubmission = await Submission.findOne(ownedSubmissionFilter(pollUser._id, { judgeSubmissionId: id })).select("_id").lean() as unknown as { _id: unknown } | null;
     if (!ownedSubmission) return errorResponse("Submission not found.", 404, requestId);
   }
 

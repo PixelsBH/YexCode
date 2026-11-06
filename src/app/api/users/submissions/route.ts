@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOrSyncUser } from "@/lib/auth-user";
 import Submission from "@/models/Submission";
 import Problem from "@/models/Problem";
+import { ownedSubmissionFilter } from "@/lib/submission-access.mjs";
 
 function parsePositive(value: string | null, fallback: number, max: number) {
   if (value === null) return fallback;
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     if (!page || !pageSize || (problemSlug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(problemSlug))) {
       return NextResponse.json({ error: "Invalid history query." }, { status: 400 });
     }
-    const filter = { userId: user._id, ...(problemSlug ? { problemSlug } : {}) };
+    const filter = ownedSubmissionFilter(user._id, problemSlug ? { problemSlug } : {});
     const [total, items] = await Promise.all([
       Submission.countDocuments(filter),
       Submission.find(filter).select("problemSlug language status verdict score passedTestCases totalTestCases runtimeMs memoryMb errorStage errorMessage createdAt")

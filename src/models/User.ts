@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    authProviderUserId: { type: String, required: true, unique: true, index: true },
+    authProviderUserId: { type: String, required: true, unique: true },
     name: { type: String, required: true, default: "" },
     email: { type: String, required: true, default: "" },
     avatarUrl: { type: String, default: "" },
