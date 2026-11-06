@@ -134,14 +134,38 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   /* ─── Panel tab ─── */
   const [activeTab, setActiveTab] = useState<"run" | "submit">("run");
-
+  const [editorRatio, setEditorRatio] = useState(0.68);
+  const [editorHeight, setEditorHeight] = useState(0);
+  const splitAreaRef = useRef<HTMLDivElement>(null);
+  const editorPaneRef = useRef<HTMLDivElement>(null);
 
   /* ─── Draft state ─── */
   const [draftStatus, setDraftStatus] = useState<"loading" | "saved" | "template" | "unavailable">("loading");
   const skipNextDraftSaveRef = useRef(false);
+  const copiedSourceRef = useRef<{ language: EditorLanguage; sourceCode: string } | null>(null);
+
+  useEffect(() => {
+    const pane = editorPaneRef.current;
+    if (!pane) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const nextHeight = Math.floor(entry.contentRect.height);
+      setEditorHeight((current) => current === nextHeight ? current : nextHeight);
+    });
+    observer.observe(pane);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
+    const loadSource = (event: Event) => {
+      const detail = (event as CustomEvent<{ sourceCode: string; language: "cpp" | "python" }>).detail;
+      if (!detail || typeof detail.sourceCode !== "string") return;
+      const copiedLanguage = detail.language === "cpp" ? "C++" : "Python";
+      copiedSourceRef.current = { language: copiedLanguage, sourceCode: detail.sourceCode };
+      setCode(detail.sourceCode);
+      setLanguage(copiedLanguage);
+    };
+    window.addEventListener("yexcode:load-source", loadSource);
     const runAbortControllerRef = runAbortRef;
     const submitAbortControllerRef = submitAbortRef;
 
@@ -152,6 +176,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
     return () => {
       mountedRef.current = false;
+      window.removeEventListener("yexcode:load-source", loadSource);
       clearPoll(runPollRef);
       clearPoll(submitPollRef);
       runAbortControllerRef.current?.abort();
@@ -162,8 +187,15 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   // Restore draft
   useEffect(() => {
     const template = getLanguageTemplate(language, templates, initialCode, functionMetadata);
-    skipNextDraftSaveRef.current = true;
-    setDraftStatus("loading");
+    const copiedSource = copiedSourceRef.current?.language === language ? copiedSourceRef.current : null;
+    if (copiedSource) copiedSourceRef.current = null;
+    skipNextDraftSaveRef.current = !copiedSource;
+    setDraftStatus(copiedSource ? "saved" : "loading");
+
+    if (copiedSource) {
+      setCode(copiedSource.sourceCode);
+      return;
+    }
 
     try {
       const savedDraft = window.localStorage.getItem(getDraftKey(problemSlug, language));
@@ -265,6 +297,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
         const data = await response.json();
         if (!isCurrent()) return;
+        if (operation === "submit" && (data.status === "finished" || data.status === "failed")) {
+          window.dispatchEvent(new Event("yexcode:submission-updated"));
+        }
 
         if (data.status === "queued" || data.status === "running") {
           setStatus(data.status);
@@ -382,6 +417,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       }
 
       const judgeStatus = typeof data.status === "string" ? data.status : "queued";
+      if (!isRun) window.dispatchEvent(new Event("yexcode:submission-created"));
       setStatus(judgeStatus);
       pollRef.current = window.setTimeout(
         () => pollSubmission(operation, String(id), setStatus, setResult, pollRef, controller, requestId, isCurrent),
@@ -403,13 +439,21 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const handleRun = () => execute("run");
   const handleSubmit = () => execute("submit");
 
+  const resizeEditor = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.buttons !== 1) return;
+    const bounds = splitAreaRef.current?.getBoundingClientRect();
+    if (!bounds || bounds.height <= 0) return;
+    const ratio = (event.clientY - bounds.top) / bounds.height;
+    setEditorRatio(Math.min(0.82, Math.max(0.25, ratio)));
+  };
+
   const isRunBusy = runStatus === "submitting" || runStatus === "queued" || runStatus === "running";
   const isSubmitBusy = submitStatus === "submitting" || submitStatus === "queued" || submitStatus === "running";
 
   return (
-    <div className="flex flex-col rounded-xl border border-white/10 bg-black/40 backdrop-blur-xl overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent">
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-black/30">
+      <div className="flex shrink-0 items-center justify-between border-b border-white/[0.08] bg-white/[0.015] px-4 py-2">
         <div className="flex items-center gap-3">
           <span className="text-xs text-white/50" aria-live="polite">
             {draftStatus === "saved" && "Saved locally"}
@@ -449,55 +493,79 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             ))}
           </select>
         </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={handleRun}
+            disabled={isRunBusy || isSubmitBusy}
+            className="flex items-center gap-2 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-50"
+          >
+            ▶ Run Code
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isRunBusy || isSubmitBusy}
+            className="rounded-md bg-[#6c47ff] px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+          >
+            Submit Code
+          </button>
+        </div>
       </div>
 
-      {/* Editor */}
-      <div>
-        {loaded && CodeMirrorWrapper ? (
-          <CodeMirrorWrapper
-            value={code}
-            height="320px"
-            theme={themeMap[theme]}
-            extensions={[languageExtensions[language]]}
-            onChange={(val: string) => setCode(val || "")}
+      <div ref={splitAreaRef} className="flex min-h-0 flex-1 flex-col">
+        {/* Editor */}
+        <div
+          ref={editorPaneRef}
+          className="min-h-[160px] overflow-auto"
+          style={{ flex: `${editorRatio} 1 0%` }}
+        >
+          {loaded && CodeMirrorWrapper ? (
+            <CodeMirrorWrapper
+              value={code}
+              height={editorHeight > 0 ? `${editorHeight}px` : "100%"}
+              theme={themeMap[theme]}
+              extensions={[languageExtensions[language]]}
+              onChange={(val: string) => setCode(val || "")}
+            />
+          ) : (
+            <div className="flex h-full min-h-[160px] items-center justify-center text-white/50">
+              Loading editor...
+            </div>
+          )}
+        </div>
+
+        <div
+          role="separator"
+          aria-label="Resize editor and results panels"
+          aria-orientation="horizontal"
+          aria-valuemin={25}
+          aria-valuemax={82}
+          aria-valuenow={Math.round(editorRatio * 100)}
+          tabIndex={0}
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            resizeEditor(event);
+          }}
+          onPointerMove={resizeEditor}
+          className="group relative z-10 flex h-2 shrink-0 cursor-row-resize touch-none items-center justify-center border-y border-white/[0.06] bg-black/40 transition-colors hover:bg-violet-400/10 focus-visible:outline-1 focus-visible:outline-violet-400"
+        >
+          <span className="h-0.5 w-10 rounded-full bg-white/20 transition-colors group-hover:bg-violet-300/70" />
+        </div>
+
+        {/* Results panel */}
+        <div
+          className="min-h-[140px] overflow-y-auto border-t border-white/[0.08]"
+          style={{ flex: `${1 - editorRatio} 1 0%` }}
+        >
+          <SubmissionPanel
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            runResult={runResult}
+            runExamples={examples}
+            runStatus={runStatus}
+            submitResult={submitResult}
+            submitStatus={submitStatus}
           />
-        ) : (
-          <div className="h-[320px] flex items-center justify-center text-white/50">
-            Loading editor...
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Bar */}
-      <div className="flex items-center justify-end gap-3 px-4 py-2 border-t border-white/10 bg-black/30">
-        <button
-          onClick={handleRun}
-          disabled={isRunBusy || isSubmitBusy}
-          className="flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition"
-        >
-          ▶ Run Code
-        </button>
-
-        <button
-          onClick={handleSubmit}
-          disabled={isRunBusy || isSubmitBusy}
-          className="px-4 py-1.5 rounded-md text-sm font-medium text-white bg-[#6c47ff] hover:opacity-90 disabled:opacity-50 transition"
-        >
-          Submit Code
-        </button>
-      </div>
-
-      {/* Submission Panel */}
-      <div className="mt-0">
-        <SubmissionPanel
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          runResult={runResult}
-          runExamples={examples}
-          runStatus={runStatus}
-          submitResult={submitResult}
-          submitStatus={submitStatus}
-        />
+        </div>
       </div>
 
     </div>

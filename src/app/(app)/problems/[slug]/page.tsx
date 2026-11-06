@@ -19,11 +19,11 @@ export default async function ProblemPage({ params }: { params: Params }) {
   const problem = await res.json();
 
   return (
-    <div className="grid grid-cols-2 gap-4 h-screen">
-      <div className="min-h-0 p-2">
+    <div className="grid h-[calc(100vh-7rem)] grid-cols-1 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80 shadow-2xl shadow-black/20 lg:grid-cols-2">
+      <div className="min-h-0 min-w-0 border-b border-white/10 lg:border-b-0 lg:border-r">
         <ProblemWorkspaceTabs problem={problem} problemSlug={slug} />
       </div>
-      <div className="flex flex-col p-2">
+      <div className="flex min-h-0 min-w-0 flex-col">
         <CodeEditor
           problemSlug={slug}
           initialCode={problem.templates?.cpp || "// Write your code here"}

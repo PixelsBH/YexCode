@@ -421,9 +421,9 @@ export default function SubmissionPanel({
         : null;
 
   return (
-    <div className="rounded-lg border border-white/[0.06] bg-zinc-900/60 backdrop-blur-sm overflow-hidden">
+    <div className="overflow-hidden bg-transparent">
       {/* Tab bar */}
-      <div className="flex items-center border-b border-white/[0.06] bg-black/20">
+      <div className="flex items-center border-b border-white/[0.08] bg-white/[0.015]">
         <button
           onClick={() => onTabChange("run")}
           className={`

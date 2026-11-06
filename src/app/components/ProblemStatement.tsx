@@ -36,7 +36,7 @@ const formatValue = (value: unknown): string => {
 
 export default function ProblemStatement({ problem }: ProblemStatementProps) {
   return (
-    <div className="p-6 border rounded-lg shadow-md bg-neutral-800 border-white/60">
+    <div className="p-6">
       <h1 className="text-2xl font-bold mb-2 text-white">{problem.title}</h1>
       <div className="mb-4">
         <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-sm text-white/80">

@@ -10,8 +10,8 @@ export default function ProblemWorkspaceTabs({ problem, problemSlug }: { problem
   const [activeTab, setActiveTab] = useState<"description" | "submissions">("description");
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/40 backdrop-blur-xl">
-      <div role="tablist" aria-label="Problem workspace" className="flex shrink-0 border-b border-white/10">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent">
+      <div role="tablist" aria-label="Problem workspace" className="flex shrink-0 border-b border-white/[0.08] bg-white/[0.015] px-2">
         <button
           id="problem-description-tab"
           type="button"
@@ -39,7 +39,7 @@ export default function ProblemWorkspaceTabs({ problem, problemSlug }: { problem
         id={activeTab === "description" ? "problem-description-panel" : "problem-submissions-panel"}
         role="tabpanel"
         aria-labelledby={activeTab === "description" ? "problem-description-tab" : "problem-submissions-tab"}
-        className="min-h-0 flex-1 overflow-y-auto"
+        className="problem-panel-scrollbar min-h-0 flex-1 overflow-y-auto"
       >
         {activeTab === "description"
           ? <ProblemStatement problem={problem} />
