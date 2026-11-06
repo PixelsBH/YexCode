@@ -11,7 +11,7 @@ YexCode can display problems without YexJudge, but Run Code and Submit Code requ
 
 ## Configure environment
 
-Copy the example into `.env.local` in the YexCode project root, then replace its MongoDB and Clerk placeholders with your credentials. Keep `.env.local` out of version control and do not commit credentials.
+Copy the example into `.env.local` in the YexCode project root, then replace its MongoDB and Clerk placeholders with your credentials. Add the Upstash Redis REST URL and token from your Upstash database settings. Keep `.env.local` out of version control and do not commit credentials.
 
 ```bash
 cp .env.local.example .env.local
@@ -26,6 +26,8 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000
 
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=<Clerk publishable key>
 CLERK_SECRET_KEY=<Clerk secret key>
+UPSTASH_REDIS_REST_URL=<Upstash Redis REST URL>
+UPSTASH_REDIS_REST_TOKEN=<Upstash Redis REST token>
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
@@ -33,6 +35,10 @@ NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
 ```
 
 `JUDGE_BASE_URL` is required by the server-side proxy; add it to `.env.local` and restart the YexCode server after changing it. For a host-run Next.js app with the local Docker Compose judge, use `http://localhost:8080`. The browser should call YexCode's `/api/run` routes, not YexJudge directly.
+
+Upstash credentials are required in production. If they are missing or Upstash is unavailable, new Run and Submit requests return `503` rather than dispatching unprotected work. Polling fails open during a Redis outage so existing results can still be retrieved; Submit polling still requires authentication and ownership. Local development bypasses rate limiting when credentials are absent. The current sliding-window limits are: Run creation, 15 requests per IP per minute (Run remains public); Submit creation, 30 per IP and 5 per signed-in account per minute; judge polling, 600 per IP and 300 per signed-in account per minute when Redis is available. Tune these values against actual usage and judge capacity.
+
+IP limits use `CF-Connecting-IP`, `X-Real-IP`, or the last address in `X-Forwarded-For` (the address added by the trusted immediate proxy). In deployment, bind YexCode behind a trusted reverse proxy that sets or overwrites these headers; do not expose the app directly to clients that could spoof them.
 
 ## Start YexJudge
 

@@ -10,6 +10,8 @@ Before deploying:
 - keep PostgreSQL private and configure strong, non-committed secrets
 - preserve YexJudge's compile/runtime isolation and resource limits
 - configure service restarts, health/readiness checks, monitoring, and backups
+- configure `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` as server-only secrets; new Run/Submit requests fail closed with `503` if rate limiting is unavailable, while existing-result polling fails open (Submit polling still checks ownership)
+- keep YexCode behind a trusted proxy that overwrites client IP headers used for per-IP rate limits
 - never expose the Docker daemon or Docker socket to clients
 
 Before deploying YexCode, remove development-only reference solutions from production build artifacts and the production MongoDB database. The checked-in problem fixtures currently include reference implementations for development smoke tests; excluding them from public API responses is not sufficient to make deployment safe. `seed:problems` and `sync:problem-metadata` refuse to run when `NODE_ENV=production`, but treat that as a guardrail—not a replacement for removing the data or verifying deployment contents. Never run smoke scripts against production services.

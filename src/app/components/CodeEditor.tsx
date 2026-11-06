@@ -281,8 +281,13 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         if (!isCurrent()) return;
 
         if (!response.ok) {
-          if ([502, 503, 504].includes(response.status) && retryAttempt < 3) {
-            schedule(retryAttempt + 1, 500 * 2 ** retryAttempt);
+          const isRateLimited = response.status === 429;
+          if (([502, 503, 504].includes(response.status) || isRateLimited) && retryAttempt < 5) {
+            const retryAfterSeconds = Number(response.headers.get("Retry-After"));
+            const retryDelay = isRateLimited && Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+              ? Math.min(retryAfterSeconds * 1000, 120_000)
+              : 500 * 2 ** retryAttempt;
+            schedule(retryAttempt + 1, retryDelay);
             return;
           }
           const errorData = await response.json().catch(() => null);

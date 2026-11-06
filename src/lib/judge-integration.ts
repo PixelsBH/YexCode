@@ -5,6 +5,7 @@ import dbConnect from "@/lib/mongodb";
 import Problem from "@/models/Problem";
 import Submission from "@/models/Submission";
 import { getOrSyncUser } from "@/lib/auth-user";
+import { checkRateLimit, getClientIp, rateLimitIdentifier, type PolicyName } from "@/lib/rate-limit";
 import {
   normalizeJudgeError,
   normalizeSubmissionEnvelope,
@@ -177,6 +178,38 @@ function errorResponse(message: string, status: number, requestId: string) {
   );
 }
 
+async function rateLimitResponse(
+  name: PolicyName,
+  identifier: string,
+  requestId: string,
+  failOpen = false,
+) {
+  const result = await checkRateLimit(name, identifier);
+  if (result.success || (failOpen && result.unavailable)) return null;
+  const retryAfter = Math.max(1, Math.ceil((result.reset - Date.now()) / 1000));
+  const status = result.unavailable ? 503 : 429;
+  return NextResponse.json(
+    { error: {
+      code: result.unavailable ? "rate_limiter_unavailable" : "rate_limited",
+      message: result.unavailable
+        ? "Request protection is temporarily unavailable. Please retry shortly."
+        : "Too many requests. Please wait before trying again.",
+      requestId,
+    } },
+    {
+      status,
+      headers: {
+        "X-Request-ID": requestId,
+        "Cache-Control": "no-store",
+        "Retry-After": String(retryAfter),
+        "RateLimit-Limit": String(result.limit),
+        "RateLimit-Remaining": String(result.remaining),
+        "RateLimit-Reset": String(Math.ceil(result.reset / 1000)),
+      },
+    }
+  );
+}
+
 function getJudgeSubmissionsUrl(): string | null {
   const base = process.env.JUDGE_BASE_URL?.trim().replace(/\/$/, "");
   if (!base) return null;
@@ -239,6 +272,27 @@ async function judgeResponse(response: Response, requestId: string, kind: "creat
 
 export async function createJudgeSubmission(request: NextRequest, operation: Operation) {
   const requestId = requestIdFor(request);
+  const ipIdentifier = rateLimitIdentifier(getClientIp(request));
+  const ipPolicy = operation === "run" ? "runCreateIp" : "submitCreateIp";
+  const ipLimitResponse = await rateLimitResponse(ipPolicy, ipIdentifier, requestId);
+  if (ipLimitResponse) return ipLimitResponse;
+
+  let submitUser: Awaited<ReturnType<typeof getOrSyncUser>> = null;
+  if (operation === "submit") {
+    try {
+      submitUser = await getOrSyncUser();
+    } catch {
+      return errorResponse("Could not verify your account. Please retry.", 500, requestId);
+    }
+    if (!submitUser) return errorResponse("Sign in to submit solutions.", 401, requestId);
+    const userLimitResponse = await rateLimitResponse(
+      "submitCreateUser",
+      rateLimitIdentifier(String(submitUser._id)),
+      requestId,
+    );
+    if (userLimitResponse) return userLimitResponse;
+  }
+
   const contentLength = Number(request.headers.get("content-length") || 0);
   if (contentLength > MAX_REQUEST_BYTES) {
     return errorResponse("Request body exceeds the 1 MB limit.", 413, requestId);
@@ -269,11 +323,9 @@ export async function createJudgeSubmission(request: NextRequest, operation: Ope
   }
 
   let savedSubmission: { _id: unknown } | null = null;
-  if (operation === "submit") {
-    const user = await getOrSyncUser();
-    if (!user) return errorResponse("Sign in to submit solutions.", 401, requestId);
+  if (operation === "submit" && submitUser) {
     savedSubmission = await Submission.create({
-      userId: user._id,
+      userId: submitUser._id,
       problemSlug: (body as Record<string, unknown>).slug,
       kind: "submit",
       language: payload.language,
@@ -337,11 +389,33 @@ export async function getJudgeSubmission(request: NextRequest, id: string, opera
   }
 
   let ownedSubmission: { _id: unknown } | null = null;
+  let pollUser: Awaited<ReturnType<typeof getOrSyncUser>> = null;
   if (operation === "submit") {
-    const user = await getOrSyncUser();
-    if (!user) return errorResponse("Sign in to view this submission.", 401, requestId);
-    ownedSubmission = await Submission.findOne({ userId: user._id, judgeSubmissionId: id }).select("_id").lean() as unknown as { _id: unknown } | null;
+    try {
+      pollUser = await getOrSyncUser();
+    } catch {
+      return errorResponse("Could not verify your account. Please retry.", 500, requestId);
+    }
+    if (!pollUser) return errorResponse("Sign in to view this submission.", 401, requestId);
+    ownedSubmission = await Submission.findOne({ userId: pollUser._id, judgeSubmissionId: id }).select("_id").lean() as unknown as { _id: unknown } | null;
     if (!ownedSubmission) return errorResponse("Submission not found.", 404, requestId);
+  }
+
+  const ipLimitResponse = await rateLimitResponse(
+    "pollIp",
+    rateLimitIdentifier(getClientIp(request)),
+    requestId,
+    true,
+  );
+  if (ipLimitResponse) return ipLimitResponse;
+  if (pollUser) {
+    const userLimitResponse = await rateLimitResponse(
+      "pollUser",
+      rateLimitIdentifier(String(pollUser._id)),
+      requestId,
+      true,
+    );
+    if (userLimitResponse) return userLimitResponse;
   }
 
   const submissionsUrl = getJudgeSubmissionsUrl();
