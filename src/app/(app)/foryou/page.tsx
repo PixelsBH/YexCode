@@ -38,7 +38,7 @@ export default async function ForYouPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-semibold text-white">For You</h1>
         <p className="mt-2 text-white/60">
-          Follow a curated path through the available practice problems. Personalized progress will be added with accounts and submissions.
+          Follow curated paths through practice problems. Use the Problems page to filter by your solved and attempted progress.
         </p>
       </div>
 

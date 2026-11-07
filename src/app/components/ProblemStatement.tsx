@@ -133,7 +133,7 @@ export default function ProblemStatement({ problem }: ProblemStatementProps) {
 
       {problem.topics && problem.topics.length > 0 && (
         <details className="mt-4 rounded-md border border-white/10 bg-black/20 px-3 py-2">
-          <summary className="cursor-pointer text-sm font-medium text-white/70">Topics</summary>
+          <summary className="cursor-pointer text-sm font-medium text-white/70">Reveal topic hints</summary>
           <div className="mt-2 flex flex-wrap gap-2">
             {problem.topics.map((topic) => (
               <span key={topic} className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/70">

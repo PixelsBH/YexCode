@@ -20,13 +20,12 @@ type ProblemListItem = {
   slug: string;
   title: string;
   difficulty: string;
-  topics: string[];
-  solved?: boolean;
+  progress: "solved" | "attempted" | "unattempted" | null;
 };
 
 type ProblemListResponse = {
   items: ProblemListItem[];
-  topics: string[];
+  authenticated: boolean;
   page: number;
   pageSize: number;
   total: number;
@@ -35,7 +34,7 @@ type ProblemListResponse = {
 
 export default function ProblemsTable({ initialData }: { initialData: ProblemListResponse }) {
   const [search, setSearch] = useState("");
-  const [topic, setTopic] = useState("");
+  const [progress, setProgress] = useState<"all" | "solved" | "attempted" | "unattempted">("all");
   const [page, setPage] = useState(initialData.page);
   const [data, setData] = useState(initialData);
   const [loading, setLoading] = useState(false);
@@ -50,7 +49,7 @@ export default function ProblemsTable({ initialData }: { initialData: ProblemLis
     const timer = window.setTimeout(async () => {
       const params = new URLSearchParams({ page: String(page), pageSize: String(initialData.pageSize) });
       if (normalizedSearch) params.set("q", normalizedSearch);
-      if (topic) params.set("topic", topic);
+      if (progress !== "all") params.set("progress", progress);
 
       try {
         const response = await fetch(`/api/problems?${params}`, {
@@ -75,7 +74,7 @@ export default function ProblemsTable({ initialData }: { initialData: ProblemLis
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [initialData, page, search, topic]);
+  }, [initialData, page, progress, search]);
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40 backdrop-blur-xl">
@@ -94,17 +93,19 @@ export default function ProblemsTable({ initialData }: { initialData: ProblemLis
           />
         </label>
         <label className="sm:w-64">
-          <span className="sr-only">Filter problems by topic</span>
+          <span className="sr-only">Filter problems by your progress</span>
           <select
-            value={topic}
+            value={progress}
             onChange={(event) => {
-              setTopic(event.target.value);
+              setProgress(event.target.value as "all" | "solved" | "attempted" | "unattempted");
               setPage(1);
             }}
             className="w-full rounded-md border border-white/15 bg-black/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/30"
           >
-            <option value="">All topics</option>
-            {data.topics.map((item) => <option key={item} value={item}>{item}</option>)}
+            <option value="all">All problems</option>
+            <option value="solved">Solved</option>
+            <option value="attempted">Attempted (not solved)</option>
+            <option value="unattempted">Unattempted</option>
           </select>
         </label>
       </div>
@@ -129,7 +130,7 @@ export default function ProblemsTable({ initialData }: { initialData: ProblemLis
               </span>
             </div>
             <div className="col-span-2 text-right text-xs">
-              {problem.solved ? <span className="text-green-400">Solved</span> : <span className="text-white/25">—</span>}
+              {problem.progress === "solved" ? <span className="text-green-400">Solved</span> : problem.progress === "attempted" ? <span className="text-yellow-300">Attempted</span> : problem.progress === "unattempted" ? <span className="text-white/40">Unattempted</span> : <span className="text-white/25">—</span>}
             </div>
           </li>
         ))}

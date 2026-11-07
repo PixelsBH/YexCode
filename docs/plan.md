@@ -8,7 +8,7 @@ YexCode owns the web app, problem content, accounts, and progress. YexJudge owns
 
 ## Product rules
 
-The problem list shows problem name, difficulty, and the logged-in user's solved state. Do not restore category-based navigation. Topics and optional companies are problem metadata, hidden initially on problem pages; revealing them never reveals hidden tests.
+The problem list shows problem name, difficulty, and the logged-in user's progress. It supports title search and Solved/Attempted filters, but intentionally does not expose topic filters. Topics are optional, multi-valued hints revealed only on the problem page; revealing them never reveals hidden tests. Do not restore category-based navigation.
 
 A problem is solved only after Submit passes the complete test suite. Run never marks a problem solved. A profile lists each problem once: any accepted submission makes it **Solved**; otherwise, any Submit attempt makes it **Attempted**.
 
@@ -29,14 +29,6 @@ The browser calls YexCode and never knows the YexJudge host. It does not provide
 
 ## Features
 
-### Feature 5 — Custom benchmark tests
-
-- [x] Replace the `/benchmark` placeholder with a standalone C++/Python stdin/stdout workspace with editable cases and add/remove controls.
-- [x] Add a validated endpoint that runs only caller-provided cases, without selecting or loading a problem.
-- [x] Display per-case pass/fail and aggregate counts, with expected and actual output when available.
-- [x] Enforce test-count, payload-size, and rate limits; keep hidden tests server-only and out of benchmark responses.
-- [x] Ensure benchmark runs do not create Submit records or affect solved/attempted progress.
-
 ### Feature 8 — Language and editor experience (partially implemented)
 
 The editor and server request flow support C++ and Python Function Mode, with separate device-local drafts and language-specific editor highlighting. Remaining work is to wire stdin/stdout and Class Mode into the web workspace and expose only combinations supported by YexJudge. Device-local drafts and a clear-draft control are already implemented.
@@ -45,7 +37,7 @@ The editor and server request flow support C++ and Python Function Mode, with se
 
 - [ ] **Production-safe problem fixtures:** Before deployment, move reference solutions out of production artifacts, remove stored reference solutions from the production database, and verify production imports cannot restore them. The `NODE_ENV=production` script guard is a safeguard, not a replacement for cleanup.
 - [ ] **Problem quality:** Review hidden-case coverage when adding or editing problems; automated shape checks cannot judge test quality.
-- [ ] **Personalized discovery:** Add solved/attempted filters using persisted user submissions.
+- [x] **Personalized discovery:** Add authenticated solved/attempted/unattempted filters using persisted user submissions; keep topics as revealable problem-page hints rather than list filters.
 
 Implementation details for Features 6, 7, and 9, including current behavior and development safeguards, are in [feature implementation notes](feature-implementation-notes.md). Discussions/editorials, analytics, and leaderboards/contests are future possibilities, not scheduled roadmap work.
 

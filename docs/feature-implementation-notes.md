@@ -12,17 +12,15 @@ The judge stops after the first failing case. `passedTestCases` counts the leadi
 
 Versioned JSON fixtures in Git are the reviewed import source. `validate:problems` checks fixture shape and the seeder runs the same validation before writing. The one-time migration utility remains available for supported legacy database records; legacy content shapes are not accepted in fixtures or runtime APIs.
 
-`smoke:two-sum` checks one fixture. `smoke:problems` compile-checks every template, runs the checked-in C++ reference solutions through Run and Submit, and checks pagination, topic filtering, and public-field privacy. Run smoke tests only against local development services; they create real judge submissions.
+`smoke:two-sum` checks one fixture. `smoke:problems` compile-checks every template, runs the checked-in C++ reference solutions through Run and Submit, and checks pagination and public-field privacy. Run smoke tests only against local development services; they create real judge submissions.
 
 For local development databases with curated hidden suites, `sync:problem-metadata` updates topics, companies, hints, and private reference solutions without replacing test suites. `seed:problems` and `sync:problem-metadata` refuse to run when `NODE_ENV=production`. These safeguards do not make the checked-in reference solutions safe to include in a production artifact.
 
 Open work remains in the plan: before production deployment, move reference solutions out of production artifacts and the production database, and review hidden-case coverage when problems are added or edited. See [deployment notes](deployment.md) and [problem data integration](integration.md) for related operational details.
 
-## Discovery and platform features (Feature 9 — partially implemented)
+## Discovery and platform features (Feature 9 — implemented)
 
-Implemented discovery behavior includes server-side topic filtering and title search, deterministic pagination sorted by title and slug, and collapsed topic/hint sections on problem pages. The current `/foryou` page also contains three curated learning paths. Example explanations were supported already.
-
-Solved/attempted filtering and personalized progress are not implemented; they depend on persisted user submissions from Feature 4 and remain in [`plan.md`](plan.md).
+Problem discovery includes title search, deterministic pagination sorted by title and slug, and authenticated Solved, Attempted (not solved), and Unattempted filters based on persisted submissions. The problem list intentionally does not filter or reveal topics; topics remain a collapsed, user-revealed hint on the problem page, where multiple topics may be shown together. The `/foryou` page contains three curated learning paths. Example explanations were supported already.
 
 ### Further ideas (not committed roadmap work)
 
