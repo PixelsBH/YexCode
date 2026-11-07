@@ -70,7 +70,7 @@ export default function SubmissionHistory({ problemSlug }: { problemSlug: string
             <span className="font-medium text-white">{formatStatus(item.verdict || item.status)}</span>
             <span>{item.language === "cpp" ? "C++" : "Python"}</span>
             <span>{item.runtimeMs != null ? `${item.runtimeMs} ms` : "—"}</span>
-            <span>{item.memoryMb != null ? `${item.memoryMb} MB` : "—"}</span>
+            <span>{item.memoryMb != null ? `${item.memoryMb.toFixed(2)} MB` : "—"}</span>
             <span>{item.passedTestCases != null || item.totalTestCases != null ? `${item.passedTestCases ?? 0}/${item.totalTestCases ?? 0}` : "—"}</span>
             <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString()}</time>
           </button>)}

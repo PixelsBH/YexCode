@@ -32,9 +32,9 @@ export default function Navbar() {
             aria-label="Main navigation"
             className="liquid-glass-links flex w-max min-w-0 items-center justify-start gap-0.5 overflow-x-auto text-xs sm:gap-5 sm:text-base"
           >
-            <Link href="/benchmark" className="liquid-glass-link">
-              <span className="sm:hidden">Bench</span>
-              <span className="hidden sm:inline">Benchmark</span>
+            <Link href="/workspace" className="liquid-glass-link">
+              <span className="sm:hidden">Work</span>
+              <span className="hidden sm:inline">Workspace</span>
             </Link>
             <Link href="/problems-list" className="liquid-glass-link">
               Problems

@@ -7,10 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ignore-pattern .next",
-    "test": "node --test scripts/problem-validation.test.mjs src/lib/judge-contract.test.mjs src/lib/submission-access.test.mjs src/lib/request-limits.test.mjs src/lib/benchmark-validation.test.mjs",
-    "validate:problems": "node scripts/validate-problems.mjs",
-    "seed:problems": "node scripts/seed-problems.mjs",
-    "sync:problem-metadata": "node scripts/sync-problem-metadata.mjs",
+    "test": "node --test src/lib/judge-contract.test.mjs src/lib/submission-access.test.mjs src/lib/request-limits.test.mjs src/lib/benchmark-validation.test.mjs",
     "migrate:problems": "node scripts/migrate-problems.mjs",
     "smoke:two-sum": "node scripts/smoke-two-sum.mjs",
     "smoke:problems": "node scripts/smoke-two-sum.mjs --all"

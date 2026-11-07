@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import type { Extension } from "@codemirror/state";
+import { indentUnit } from "@codemirror/language";
 
 import { githubLight } from "@uiw/codemirror-theme-github";
 import { dracula } from "@uiw/codemirror-theme-dracula";
@@ -10,6 +11,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { cpp } from "@codemirror/lang-cpp";
 import { python } from "@codemirror/lang-python";
 import SubmissionPanel from "@/app/components/SubmissionPanel";
+import { indentationScopes } from "@/app/components/indentationScopes";
 
 
 let CodeMirrorWrapper: typeof import("@uiw/react-codemirror").default | null = null;
@@ -20,6 +22,7 @@ const languageExtensions: Record<EditorLanguage, Extension> = {
   "C++": cpp(),
   Python: python(),
 };
+
 
 const themeMap: Record<string, Extension> = {
   Light: githubLight,
@@ -529,7 +532,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
               height={editorHeight > 0 ? `${editorHeight}px` : "100%"}
               className="dark-code-scrollbar"
               theme={themeMap[theme]}
-              extensions={[languageExtensions[language]]}
+              extensions={[languageExtensions[language], indentUnit.of("    "), indentationScopes]}
               onChange={(val: string) => setCode(val || "")}
             />
           ) : (

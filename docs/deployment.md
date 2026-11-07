@@ -14,6 +14,6 @@ Before deploying:
 - keep YexCode behind a trusted proxy that overwrites client IP headers used for per-IP rate limits
 - never expose the Docker daemon or Docker socket to clients
 
-Before deploying YexCode, remove development-only reference solutions from production build artifacts and the production MongoDB database. The checked-in problem fixtures currently include reference implementations for development smoke tests; excluding them from public API responses is not sufficient to make deployment safe. `seed:problems` and `sync:problem-metadata` refuse to run when `NODE_ENV=production`, but treat that as a guardrail—not a replacement for removing the data or verifying deployment contents. Never run smoke scripts against production services.
+Before deploying YexCode, remove development-only reference solutions from production build artifacts and the production MongoDB database. The sibling YCProblems repository contains reference implementations for development smoke tests; excluding them from public API responses is not sufficient to make deployment safe. YCProblems' `seed` and `sync:metadata` commands refuse to run when `NODE_ENV=production`, but treat that as a guardrail—not a replacement for removing the data or verifying deployment contents. Never run smoke scripts against production services.
 
 See the [YexJudge deployment and security roadmap](../../YexJudge/docs/plan.md) for its outstanding production-hardening requirements.

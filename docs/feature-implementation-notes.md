@@ -10,13 +10,13 @@ The judge stops after the first failing case. `passedTestCases` counts the leadi
 
 ## Problem authoring and quality (Feature 7 — partially implemented)
 
-Versioned JSON fixtures in Git are the reviewed import source. `validate:problems` checks fixture shape and the seeder runs the same validation before writing. The one-time migration utility remains available for supported legacy database records; legacy content shapes are not accepted in fixtures or runtime APIs.
+Versioned per-problem JSON fixtures in the sibling YCProblems repository are the reviewed import source. YCProblems' `validate` command checks fixture shape and its seeder runs the same validation before writing. The YexCode one-time migration utility remains available for supported legacy database records; legacy content shapes are not accepted in runtime APIs.
 
-`smoke:two-sum` checks one fixture. `smoke:problems` compile-checks every template, runs the checked-in C++ reference solutions through Run and Submit, and checks pagination and public-field privacy. Run smoke tests only against local development services; they create real judge submissions.
+YexCode's `smoke:two-sum` reads its fixture from the sibling YCProblems repository. `smoke:problems` compile-checks every template, runs the checked-in C++ reference solutions through Run and Submit, and checks pagination and public-field privacy. Run smoke tests only when both repositories and local development services are available; they create real judge submissions.
 
-For local development databases with curated hidden suites, `sync:problem-metadata` updates topics, companies, hints, and private reference solutions without replacing test suites. `seed:problems` and `sync:problem-metadata` refuse to run when `NODE_ENV=production`. These safeguards do not make the checked-in reference solutions safe to include in a production artifact.
+For local development databases with curated hidden suites, YCProblems' `sync:metadata` command updates topics, companies, hints, and private reference solutions without replacing test suites. YCProblems' `seed` and `sync:metadata` commands refuse to run when `NODE_ENV=production`. These safeguards do not make the checked-in reference solutions safe to include in a production artifact.
 
-Open work remains in the plan: before production deployment, move reference solutions out of production artifacts and the production database, and review hidden-case coverage when problems are added or edited. See [deployment notes](deployment.md) and [problem data integration](integration.md) for related operational details.
+Open work remains in the plan: before production deployment, keep YCProblems reference solutions out of production artifacts and the production database, and review existing problems' hidden-case coverage for gaps. The YCProblems `/add-problem` skill now requires a coverage audit when future problems are authored. See [deployment notes](deployment.md) and [problem data integration](integration.md) for related operational details.
 
 ## Discovery and platform features (Feature 9 — implemented)
 

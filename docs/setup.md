@@ -65,18 +65,22 @@ From the YexCode project root:
 
 ```bash
 bun install
-bun run validate:problems
-bun run seed:problems
+bun run migrate:problems -- --dry-run
+bun run migrate:problems
 bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The seeder reads `data/problems.json` and upserts its records into MongoDB. To add or refresh only one fixture without touching the others, pass its slug:
+Open [http://localhost:3000](http://localhost:3000). Problem fixture authoring and MongoDB seeding live in the sibling [YCProblems repository](../../YCProblems/README.md), separate from the web app. From the `Yex` directory, configure its own development MongoDB URI and seed a single problem like this:
 
 ```bash
-bun run seed:problems -- subsets
+cd YCProblems
+cp .env.example .env.local
+bun install
+bun run validate
+bun run seed -- subsets
 ```
 
-The `Subsets` problem uses this targeted command. To seed another fixture, replace `subsets` with its slug. The script reports whether the record was inserted or updated. Seeding replaces the selected problem's fixture-owned fields, including its test suite. These fixture writes are for local development only: fixtures contain development-only reference solutions, and the seeder refuses to run when `NODE_ENV=production`. For an existing local development database with curated hidden tests, use `bun run sync:problem-metadata -- --dry-run` and then `bun run sync:problem-metadata` to update topics, companies, hints, and private reference solutions without changing tests. Never point either script at production MongoDB.
+Replace `subsets` with the fixture slug. Targeted seeding upserts only that slug and replaces its fixture-owned fields, including the test suite; it does not delete or modify other MongoDB problem records. Running `bun run seed` without a slug validates and upserts every fixture. The fixtures contain development-only reference solutions, and write scripts refuse to run when `NODE_ENV=production`; always use a development-only MongoDB URI. For an existing local database with curated hidden suites, YCProblems also supports `bun run sync:metadata -- --dry-run --slug subsets` followed by `bun run sync:metadata -- --slug subsets`, which updates metadata/reference solutions without replacing tests.
 
 ## Useful commands
 

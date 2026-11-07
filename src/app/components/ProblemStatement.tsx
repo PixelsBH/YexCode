@@ -60,14 +60,6 @@ export default function ProblemStatement({ problem }: ProblemStatementProps) {
         </details>
       )}
 
-      {problem.hints && problem.hints.length > 0 && (
-        <details className="mb-4 rounded-md border border-white/10 bg-black/20 px-3 py-2">
-          <summary className="cursor-pointer text-sm font-medium text-white/70">Hints</summary>
-          <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-white/70">
-            {problem.hints.map((hint, index) => <li key={index}>{hint}</li>)}
-          </ol>
-        </details>
-      )}
 
       {problem.examples && problem.examples.length > 0 && (
         <div className="mb-4">
@@ -141,6 +133,15 @@ export default function ProblemStatement({ problem }: ProblemStatementProps) {
               </span>
             ))}
           </div>
+        </details>
+      )}
+
+      {problem.hints && problem.hints.length > 0 && (
+        <details className="mt-4 rounded-md border border-white/10 bg-black/20 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-medium text-white/70">Hints</summary>
+          <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-white/70">
+            {problem.hints.map((hint, index) => <li key={index}>{hint}</li>)}
+          </ol>
         </details>
       )}
     </div>

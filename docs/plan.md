@@ -36,7 +36,8 @@ The editor and server request flow support C++ and Python Function Mode, with se
 ## Remaining roadmap work
 
 - [ ] **Production-safe problem fixtures:** Before deployment, move reference solutions out of production artifacts, remove stored reference solutions from the production database, and verify production imports cannot restore them. The `NODE_ENV=production` script guard is a safeguard, not a replacement for cleanup.
-- [ ] **Problem quality:** Review hidden-case coverage when adding or editing problems; automated shape checks cannot judge test quality.
+- [x] **Problem authoring quality workflow:** The YCProblems `/add-problem` skill requires a deliberate hidden-case coverage audit; automated shape validation is not treated as proof of test quality.
+- [ ] **Existing problem coverage:** Review the current problems' hidden-case suites for gaps and add cases where needed. Continue the coverage audit when future problems are added or edited.
 - [x] **Personalized discovery:** Add authenticated solved/attempted/unattempted filters using persisted user submissions; keep topics as revealable problem-page hints rather than list filters.
 
 Implementation details for Features 6, 7, and 9, including current behavior and development safeguards, are in [feature implementation notes](feature-implementation-notes.md). Discussions/editorials, analytics, and leaderboards/contests are future possibilities, not scheduled roadmap work.

@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
+import { loadProblemFixtures } from "../../YCProblems/scripts/problem-fixtures.mjs";
 import net from "node:net";
 import http from "node:http";
 import dns from "node:dns";
@@ -7,10 +7,8 @@ import dns from "node:dns";
 dns.setDefaultResultOrder("ipv4first");
 
 const judgeBase = (process.env.JUDGE_BASE_URL || "http://127.0.0.1:8080").replace(/\/$/, "");
-const fixtures = JSON.parse(readFileSync(new URL("../data/problems.json", import.meta.url), "utf8"));
 const allProblems = process.argv.includes("--all");
-const testProblems = allProblems ? fixtures : fixtures.filter((problem) => problem.slug === "two-sum");
-if (testProblems.length === 0) throw new Error("No problem fixtures selected for the smoke test.");
+const testProblems = allProblems ? loadProblemFixtures() : loadProblemFixtures("two-sum");
 
 function localRequest(url, { method = "GET", headers = {}, body, timeoutMs = 10_000 } = {}) {
   return new Promise((resolve, reject) => {
@@ -159,7 +157,7 @@ try {
   const pageOne = JSON.parse(pageOneResponse.body);
   const pageOneRepeat = JSON.parse(pageOneRepeatResponse.body);
   const pageTwo = JSON.parse(pageTwoResponse.body);
-  if (pageOne.page !== 1 || pageOne.pageSize !== 2 || pageTwo.page !== 2 || !Array.isArray(pageOne.items) || !Array.isArray(pageOne.topics)) {
+  if (pageOne.page !== 1 || pageOne.pageSize !== 2 || pageTwo.page !== 2 || !Array.isArray(pageOne.items)) {
     throw new Error("Problem list did not return the paginated response contract.");
   }
   const pageOneSlugs = pageOne.items.map((entry) => entry.slug);
@@ -173,12 +171,6 @@ try {
     }
   }
 
-  const topic = testProblems[0].topics[0];
-  const topicResponse = await localRequest(`${baseUrl}/api/problems?topic=${encodeURIComponent(topic)}`);
-  const topicData = JSON.parse(topicResponse.body);
-  if (topicResponse.status !== 200 || !topicData.items.every((entry) => entry.topics.includes(topic))) {
-    throw new Error(`Topic filter returned a problem outside ${topic}.`);
-  }
 
   const malformedPage = await localRequest(`${baseUrl}/api/problems?page=zero`);
   if (malformedPage.status !== 400) throw new Error("Problem list accepted invalid pagination parameters.");
@@ -239,7 +231,7 @@ try {
 
   console.log(JSON.stringify({
     publicResponsesExcludeHiddenTestsAndReferences: true,
-    topicFilterAndStablePagination: true,
+    stablePagination: true,
     clientSuppliedTestsRejected: true,
     results,
   }, null, 2));

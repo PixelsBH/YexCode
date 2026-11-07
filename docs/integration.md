@@ -45,14 +45,14 @@ The `/benchmark` workspace is a standalone stdin/stdout runner for C++ and Pytho
 
 ## Problem data
 
-Problem records are stored in MongoDB and seeded from [`../data/problems.json`](../data/problems.json). The current versioned shape includes:
+Problem records are stored in MongoDB and seeded from one versioned JSON fixture per problem in the sibling [YCProblems repository](../../YCProblems/README.md) under `data/problems/`. The current versioned shape includes:
 
 - `schemaVersion`, `slug`, `title`, `difficulty`, `description`, and `constraints`
 - `topics`, `companies`, and user-visible `hints` arrays
 - visible `examples` and server-only `hiddenTestCases`, each using JSON `args` and `expected` values
 - explicit `limits`, language `templates` (with an optional Python Function Mode starter), `function` metadata (signature and optional comparison policy), and server-only reference solutions
 
-Public problem endpoints return visible examples and public metadata only; hidden tests and reference solutions are loaded/stored server-side and never sent to the browser. Reference solutions currently exist in the checked-in development fixtures solely for smoke tests; they must not be included in production artifacts or the production database. The legacy `category`, `testCasesJson`, and `testCases` fields have been removed from the current content shape. `bun run validate:problems` checks fixtures, and `bun run seed:problems` runs the same validation before writing to MongoDB. For an existing local development database with curated suites, `bun run sync:problem-metadata` updates topics, companies, hints, and private references without replacing tests. Both write scripts refuse when `NODE_ENV=production`; this guard does not replace removing development reference data from production deployments.
+Public problem endpoints return visible examples and public metadata only; hidden tests and reference solutions are loaded/stored server-side and never sent to the browser. Reference solutions live in the separate checked-in YCProblems development fixtures solely for smoke tests; they must not be included in production artifacts or the production database. The legacy `category`, `testCasesJson`, and `testCases` fields have been removed from the current content shape. YCProblems' `bun run validate` checks every fixture. From that repository, `bun run seed -- <slug>` validates and upserts only that problem; `bun run seed` validates and upserts all fixtures. Targeted seeding does not delete or modify other MongoDB problem records. For an existing local development database with curated suites, `bun run sync:metadata -- --slug <slug>` updates topics, companies, hints, and private references without replacing tests. Both write scripts refuse when `NODE_ENV=production`; this guard does not replace using a development-only database URI.
 
 Run `bun run migrate:problems -- --dry-run` to validate existing database records without writing, then `bun run migrate:problems` to migrate supported legacy records. See [`setup.md`](setup.md) for setup and seeding instructions.
 

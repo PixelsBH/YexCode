@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Extension } from "@codemirror/state";
+import { indentUnit } from "@codemirror/language";
 import { cpp } from "@codemirror/lang-cpp";
 import { python } from "@codemirror/lang-python";
 import { oneDark } from "@codemirror/theme-one-dark";
+import { indentationScopes } from "@/app/components/indentationScopes";
 
 type Language = "cpp" | "python";
 type EditableCase = { key: number; input: string; expectedOutput: string };
@@ -163,7 +165,7 @@ export default function BenchmarkWorkspace() {
   return (
     <div className="mx-auto flex h-[calc(100dvh-7rem)] min-h-0 max-w-[1700px] flex-col overflow-hidden px-3 py-3 text-white sm:px-5">
       <header className="mb-3 shrink-0">
-        <h1 className="text-3xl font-semibold">Custom benchmark</h1>
+        <h1 className="text-3xl font-semibold">Workspace</h1>
         <p className="mt-1 text-sm text-white/50">Write a standalone C++ or Python program and test it with custom stdin/stdout cases. Runs are not saved as submissions and never affect progress.</p>
       </header>
 
@@ -191,7 +193,7 @@ export default function BenchmarkWorkspace() {
             <span aria-live="polite" className="text-xs text-white/45">{status === "idle" ? "Ready" : statusLabel(status)}</span>
           </div>
           <div className="min-h-0 flex-1 [&_.cm-editor]:h-full [&_.cm-scroller]:overflow-auto">
-            {loaded && CodeMirrorWrapper ? <CodeMirrorWrapper value={code} height="100%" className="dark-code-scrollbar h-full" theme={oneDark} extensions={[languageExtensions[language]]} onChange={(value: string) => { setCode(value || ""); setResult(null); setRunOutput(null); setStatus("idle"); }} /> : <div className="flex h-full items-center justify-center text-sm text-white/40">Loading editor…</div>}
+            {loaded && CodeMirrorWrapper ? <CodeMirrorWrapper value={code} height="100%" className="dark-code-scrollbar h-full" theme={oneDark} extensions={[languageExtensions[language], indentUnit.of("    "), indentationScopes]} onChange={(value: string) => { setCode(value || ""); setResult(null); setRunOutput(null); setStatus("idle"); }} /> : <div className="flex h-full items-center justify-center text-sm text-white/40">Loading editor…</div>}
           </div>
         </section>
 

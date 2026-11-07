@@ -1,5 +1,5 @@
-import BenchmarkWorkspace from "@/app/components/BenchmarkWorkspace";
+import { redirect } from "next/navigation";
 
-export default function BenchmarkPage() {
-  return <BenchmarkWorkspace />;
+export default function BenchmarkRedirect() {
+  redirect("/workspace");
 }
