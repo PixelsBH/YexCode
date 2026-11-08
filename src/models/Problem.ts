@@ -3,8 +3,45 @@ import mongoose from "mongoose";
 const JsonTestCaseSchema = new mongoose.Schema(
   {
     id: { type: Number, required: true },
-    args: { type: mongoose.Schema.Types.Mixed, required: true },
-    expected: { type: mongoose.Schema.Types.Mixed, required: true },
+    args: { type: mongoose.Schema.Types.Mixed },
+    expected: { type: mongoose.Schema.Types.Mixed },
+    constructorArgs: { type: [mongoose.Schema.Types.Mixed] },
+    operations: { type: [{ name: { type: String, required: true }, args: { type: [mongoose.Schema.Types.Mixed], required: true } }] },
+  },
+  { _id: false, strict: true }
+);
+
+const ClassOperationCallSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    args: { type: [mongoose.Schema.Types.Mixed], required: true, default: [] },
+  },
+  { _id: false, strict: true }
+);
+
+const ParameterSchema = new mongoose.Schema(
+  { name: { type: String, required: true }, type: { type: String, required: true } },
+  { _id: false, strict: true }
+);
+
+const FunctionMetadataSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    returnType: { type: String, required: true },
+    params: { type: [ParameterSchema], required: true },
+    comparison: { returnArrayOrder: { type: String, enum: ["unordered"] } },
+  },
+  { _id: false, strict: true }
+);
+
+const ClassMetadataSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    constructor: { params: { type: [ParameterSchema], required: true } },
+    operations: {
+      type: [{ name: { type: String, required: true }, returnType: { type: String, required: true }, params: { type: [ParameterSchema], required: true } }],
+      required: true,
+    },
   },
   { _id: false, strict: true }
 );
@@ -12,8 +49,10 @@ const JsonTestCaseSchema = new mongoose.Schema(
 const ExampleSchema = new mongoose.Schema(
   {
     id: { type: Number, required: true },
-    args: { type: mongoose.Schema.Types.Mixed, required: true },
-    expected: { type: mongoose.Schema.Types.Mixed, required: true },
+    args: { type: mongoose.Schema.Types.Mixed },
+    expected: { type: mongoose.Schema.Types.Mixed },
+    constructorArgs: { type: [mongoose.Schema.Types.Mixed] },
+    operations: { type: [ClassOperationCallSchema] },
     explanation: { type: String },
   },
   { _id: false, strict: true }
@@ -43,20 +82,8 @@ const ProblemSchema = new mongoose.Schema(
       cpp: { type: String, default: "" },
       python: { type: String, default: "" },
     },
-    function: {
-      name: { type: String, required: true },
-      returnType: { type: String, required: true },
-      params: [
-        {
-          name: { type: String, required: true },
-          type: { type: String, required: true },
-          _id: false,
-        },
-      ],
-      comparison: {
-        returnArrayOrder: { type: String, enum: ["unordered"] },
-      },
-    },
+    function: { type: FunctionMetadataSchema, default: undefined },
+    class: { type: ClassMetadataSchema, default: undefined },
   },
   { timestamps: true, strict: true }
 );

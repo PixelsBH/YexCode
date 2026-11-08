@@ -8,7 +8,7 @@ import { python } from "@codemirror/lang-python";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { indentationScopes } from "@/app/components/indentationScopes";
 
-type Language = "cpp" | "python";
+type Language = "c" | "cpp" | "python";
 type EditableCase = { key: number; input: string; expectedOutput: string };
 type FailedTestCase = { id: number; input?: string; expectedOutput?: string; actualOutput?: string };
 type JudgeResult = {
@@ -23,8 +23,9 @@ type JudgeResult = {
 type SubmissionEnvelope = { submissionId?: string; status: string; result?: JudgeResult };
 
 let CodeMirrorWrapper: typeof import("@uiw/react-codemirror").default | null = null;
-const languageExtensions: Record<Language, Extension> = { cpp: cpp(), python: python() };
+const languageExtensions: Record<Language, Extension> = { c: cpp(), cpp: cpp(), python: python() };
 const starters: Record<Language, string> = {
+  c: "#include <stdio.h>\n\nint main(void) {\n    return 0;\n}\n",
   cpp: "#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n",
   python: "import sys\n\n# Read from stdin and write to stdout\n",
 };
@@ -166,14 +167,14 @@ export default function BenchmarkWorkspace() {
     <div className="mx-auto flex h-[calc(100dvh-7rem)] min-h-0 max-w-[1700px] flex-col overflow-hidden px-3 py-3 text-white sm:px-5">
       <header className="mb-3 shrink-0">
         <h1 className="text-3xl font-semibold">Workspace</h1>
-        <p className="mt-1 text-sm text-white/50">Write a standalone C++ or Python program and test it with custom stdin/stdout cases. Runs are not saved as submissions and never affect progress.</p>
+        <p className="mt-1 text-sm text-white/50">Write a standalone C, C++, or Python program and test it with custom stdin/stdout cases. Runs are not saved as submissions and never affect progress.</p>
       </header>
 
       <div className="mb-3 flex shrink-0 flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1.5 text-xs text-white/55">
           Language
           <select value={language} onChange={(event) => { const next = event.target.value as Language; setLanguage(next); setCode(starters[next]); setResult(null); setRunOutput(null); setStatus("idle"); }} className="rounded-md border border-white/15 bg-zinc-950 px-3 py-2 text-sm text-white">
-            <option value="cpp">C++</option><option value="python">Python</option>
+            <option value="c">C</option><option value="cpp">C++</option><option value="python">Python</option>
           </select>
         </label>
         <div className="ml-auto flex gap-2">

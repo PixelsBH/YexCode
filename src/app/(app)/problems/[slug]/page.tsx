@@ -29,6 +29,7 @@ export default async function ProblemPage({ params }: { params: Params }) {
           initialCode={problem.templates?.cpp || "// Write your code here"}
           templates={problem.templates}
           function={problem.function}
+          class={problem.class}
           examples={problem.examples}
         />
       </div>

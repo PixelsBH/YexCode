@@ -51,15 +51,30 @@ type FunctionMetadata = {
   };
 };
 
+type ClassMetadata = {
+  name: string;
+  constructor: { params: FunctionParam[] };
+  operations: Array<{ name: string; returnType: string; params: FunctionParam[] }>;
+};
+
 function getLanguageTemplate(
   language: EditorLanguage,
   templates: Templates,
   initialCode: string,
   functionMetadata?: FunctionMetadata,
+  classMetadata?: ClassMetadata,
 ): string {
   const template = language === "C++" ? templates.cpp : templates.python;
   if (template) return template;
   if (language !== "Python") return initialCode;
+  if (classMetadata) {
+    const constructorParams = ["self", ...classMetadata.constructor.params.map((param) => param.name)].join(", ");
+    const methods = classMetadata.operations.map((operation) => {
+      const params = ["self", ...operation.params.map((param) => param.name)].join(", ");
+      return `    def ${operation.name}(${params}):\n        pass`;
+    }).join("\n\n");
+    return `class ${classMetadata.name}:\n    def __init__(${constructorParams}):\n        pass\n\n${methods}\n`;
+  }
   if (!functionMetadata) return "from typing import List\n\n# Write your Python solution here\n";
 
   const params = ["self", ...functionMetadata.params.map((param) => param.name)].join(", ");
@@ -99,6 +114,7 @@ type CodeEditorProps = {
 
   templates?: Templates;
   function?: FunctionMetadata;
+  class?: ClassMetadata;
   examples?: ExampleTestCase[];
 };
 
@@ -112,6 +128,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   initialCode,
   templates = {},
   function: functionMetadata,
+  class: classMetadata,
   examples = [],
 }) => {
   const [code, setCode] = useState(initialCode);
@@ -189,7 +206,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   // Restore draft
   useEffect(() => {
-    const template = getLanguageTemplate(language, templates, initialCode, functionMetadata);
+    const template = getLanguageTemplate(language, templates, initialCode, functionMetadata, classMetadata);
     const copiedSource = copiedSourceRef.current?.language === language ? copiedSourceRef.current : null;
     if (copiedSource) copiedSourceRef.current = null;
     skipNextDraftSaveRef.current = !copiedSource;
@@ -208,7 +225,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       setCode(template);
       setDraftStatus("unavailable");
     }
-  }, [problemSlug, language, templates, initialCode, functionMetadata]);
+  }, [problemSlug, language, templates, initialCode, functionMetadata, classMetadata]);
 
   // Debounced draft save
   useEffect(() => {
@@ -230,7 +247,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   }, [code, problemSlug, language]);
 
   const clearDraft = () => {
-    const template = getLanguageTemplate(language, templates, initialCode, functionMetadata);
+    const template = getLanguageTemplate(language, templates, initialCode, functionMetadata, classMetadata);
 
     try {
       window.localStorage.removeItem(getDraftKey(problemSlug, language));
@@ -381,8 +398,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     if (isRun) setActiveTab("run");
     else setActiveTab("submit");
 
-    if (!functionMetadata) {
-      setResult({ status: "validation_error", errorMessage: "This problem has no Function Mode definition." });
+    if (!functionMetadata && !classMetadata) {
+      setResult({ status: "validation_error", errorMessage: "This problem has no execution-mode definition." });
       setStatus("error");
       abortRef.current = null;
       return;

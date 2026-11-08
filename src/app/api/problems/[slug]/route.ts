@@ -13,7 +13,7 @@ export async function GET(
     
     const problem = await Problem.findOne({ slug })
       .select(
-        "schemaVersion slug title difficulty description constraints topics companies hints examples limits templates function"
+        "schemaVersion slug title difficulty description constraints topics companies hints examples limits templates function class"
       )
       .lean();
 

@@ -20,10 +20,16 @@ const DEFAULT_LIMITS = { timeLimitMs: 1000, memoryLimitMb: 128 };
 
 type Operation = "run" | "submit";
 type JsonFunctionTestCase = { id: number; args: unknown[]; expected: unknown };
+type JsonClassTestCase = {
+  id: number;
+  constructorArgs: unknown[];
+  operations: Array<{ name: string; args: unknown[] }>;
+  expected: unknown[];
+};
 type JsonStdinTestCase = { id: number; input: string; expectedOutput: string };
 type JudgePayload = {
-  language: "cpp" | "python";
-  mode: "function" | "stdin";
+  language: "c" | "cpp" | "python";
+  mode: "function" | "class" | "stdin";
   sourceCode: string;
   function?: {
     name: string;
@@ -31,7 +37,12 @@ type JudgePayload = {
     params: Array<{ name: string; type: string }>;
     comparison?: { returnArrayOrder: "unordered" };
   };
-  testCases: Array<JsonFunctionTestCase | JsonStdinTestCase>;
+  class?: {
+    name: string;
+    constructor: { params: Array<{ name: string; type: string }> };
+    operations: Array<{ name: string; returnType: string; params: Array<{ name: string; type: string }> }>;
+  };
+  testCases: Array<JsonFunctionTestCase | JsonClassTestCase | JsonStdinTestCase>;
   limits: { timeLimitMs: number; memoryLimitMb: number };
 };
 
@@ -91,7 +102,7 @@ async function buildJudgePayload(body: unknown, operation: Operation): Promise<J
     throw new RequestError("A valid problem slug is required.", 400);
   }
   if (language !== "cpp" && language !== "python") {
-    throw new RequestError("Function Mode currently supports C++ and Python only.", 400);
+    throw new RequestError("Problem solutions currently support C++ and Python only.", 400);
   }
   if (typeof sourceCode !== "string") {
     throw new RequestError("sourceCode must be a string.", 400);
@@ -105,56 +116,94 @@ async function buildJudgePayload(body: unknown, operation: Operation): Promise<J
   if (!problem) throw new RequestError("Problem not found.", 404);
 
   const content = problem as unknown as Record<string, unknown>;
-  const functionValue = content.function;
-  if (!isRecord(functionValue) || typeof functionValue.name !== "string" || typeof functionValue.returnType !== "string" || !Array.isArray(functionValue.params)) {
-    throw new Error("Problem is missing valid Function Mode metadata.");
-  }
-  const params = functionValue.params.map((param, index) => {
-    if (!isRecord(param) || typeof param.name !== "string" || typeof param.type !== "string") {
-      throw new Error(`Function parameter ${index + 1} is invalid.`);
-    }
-    return { name: param.name, type: param.type };
-  });
-
   const examplesValue = content.examples;
   if (!Array.isArray(examplesValue) || examplesValue.length === 0) {
     throw new Error("Problem must contain at least one visible example.");
   }
-  const examples = examplesValue.map((testCase, index) =>
-    normalizeTestCase(testCase, `Example ${index + 1}`, params.length)
-  );
-
   const hiddenValue = content.hiddenTestCases;
   if (!Array.isArray(hiddenValue)) throw new Error("Problem hidden tests are invalid.");
-  const hiddenTestCases = hiddenValue.map((testCase, index) =>
-    normalizeTestCase(testCase, `Hidden test ${index + 1}`, params.length)
-  );
-
-  const testCases = operation === "run" ? examples : [...examples, ...hiddenTestCases];
-  if (testCases.length > MAX_TEST_CASES) {
-    throw new Error(`Problem has more than ${MAX_TEST_CASES} test cases.`);
-  }
+  const sourceCases = operation === "run" ? examplesValue : [...examplesValue, ...hiddenValue];
+  if (sourceCases.length > MAX_TEST_CASES) throw new Error(`Problem has more than ${MAX_TEST_CASES} test cases.`);
   const ids = new Set<number>();
-  for (const testCase of testCases) {
-    if (ids.has(testCase.id)) throw new Error(`Problem has duplicate test case ID ${testCase.id}.`);
-    ids.add(testCase.id);
+  for (const [index, testCase] of sourceCases.entries()) {
+    if (!isRecord(testCase) || !Number.isSafeInteger(testCase.id) || Number(testCase.id) < 1) {
+      throw new Error(`Test case ${index + 1} has an invalid ID.`);
+    }
+    if (ids.has(Number(testCase.id))) throw new Error(`Problem has duplicate test case ID ${testCase.id}.`);
+    ids.add(Number(testCase.id));
   }
 
-  const paramsMetadata = functionValue.comparison;
-  const comparison = isRecord(paramsMetadata) && paramsMetadata.returnArrayOrder === "unordered"
-    ? { returnArrayOrder: "unordered" as const }
-    : undefined;
+  const functionValue = content.function;
+  if (isRecord(functionValue)) {
+    if (typeof functionValue.name !== "string" || typeof functionValue.returnType !== "string" || !Array.isArray(functionValue.params)) {
+      throw new Error("Problem is missing valid Function Mode metadata.");
+    }
+    const params = functionValue.params.map((param, index) => {
+      if (!isRecord(param) || typeof param.name !== "string" || typeof param.type !== "string") {
+        throw new Error(`Function parameter ${index + 1} is invalid.`);
+      }
+      return { name: param.name, type: param.type };
+    });
+    const testCases = sourceCases.map((testCase, index) => normalizeTestCase(testCase, `Test case ${index + 1}`, params.length));
+    const comparisonMetadata = functionValue.comparison;
+    const comparison = isRecord(comparisonMetadata) && comparisonMetadata.returnArrayOrder === "unordered"
+      ? { returnArrayOrder: "unordered" as const }
+      : undefined;
+    return {
+      language,
+      mode: "function",
+      sourceCode,
+      function: { name: functionValue.name, returnType: functionValue.returnType, params, ...(comparison ? { comparison } : {}) },
+      testCases,
+      limits: normalizeLimits(content.limits),
+    };
+  }
 
+  const classValue = content.class;
+  if (!isRecord(classValue) || typeof classValue.name !== "string" || !isRecord(classValue.constructor) || !Array.isArray(classValue.constructor.params) || !Array.isArray(classValue.operations)) {
+    throw new Error("Problem is missing valid Class Mode metadata.");
+  }
+  const normalizeParams = (value: unknown, label: string) => {
+    if (!Array.isArray(value)) throw new Error(`${label} must be an array.`);
+    return value.map((param, index) => {
+      if (!isRecord(param) || typeof param.name !== "string" || typeof param.type !== "string") {
+        throw new Error(`${label} parameter ${index + 1} is invalid.`);
+      }
+      return { name: param.name, type: param.type };
+    });
+  };
+  const constructorParams = normalizeParams(classValue.constructor.params, "Constructor");
+  const operations = classValue.operations.map((operationValue, index) => {
+    if (!isRecord(operationValue) || typeof operationValue.name !== "string" || typeof operationValue.returnType !== "string") {
+      throw new Error(`Class operation ${index + 1} is invalid.`);
+    }
+    return { name: operationValue.name, returnType: operationValue.returnType, params: normalizeParams(operationValue.params, `Class operation ${operationValue.name}`) };
+  });
+  const classOperations = new Map(operations.map((operationValue) => [operationValue.name, operationValue]));
+  const testCases: JsonClassTestCase[] = sourceCases.map((value, index) => {
+    if (!isRecord(value) || !Array.isArray(value.constructorArgs) || !Array.isArray(value.operations) || !Array.isArray(value.expected)) {
+      throw new Error(`Class test case ${index + 1} must have constructorArgs, operations, and expected arrays.`);
+    }
+    if (value.constructorArgs.length !== constructorParams.length || value.operations.length === 0 || value.expected.length !== value.operations.length) {
+      throw new Error(`Class test case ${index + 1} does not match its class contract.`);
+    }
+    const normalizedOperations = value.operations.map((call, callIndex) => {
+      if (!isRecord(call) || typeof call.name !== "string" || !Array.isArray(call.args)) {
+        throw new Error(`Class test case ${index + 1} operation ${callIndex + 1} is invalid.`);
+      }
+      const declared = classOperations.get(call.name);
+      if (!declared || declared.params.length !== call.args.length) {
+        throw new Error(`Class test case ${index + 1} operation ${call.name} does not match class metadata.`);
+      }
+      return { name: call.name, args: call.args };
+    });
+    return { id: Number(value.id), constructorArgs: value.constructorArgs, operations: normalizedOperations, expected: value.expected };
+  });
   return {
     language,
-    mode: "function",
+    mode: "class",
     sourceCode,
-    function: {
-      name: functionValue.name,
-      returnType: functionValue.returnType,
-      params,
-      ...(comparison ? { comparison } : {}),
-    },
+    class: { name: classValue.name, constructor: { params: constructorParams }, operations },
     testCases,
     limits: normalizeLimits(content.limits),
   };
@@ -171,8 +220,8 @@ async function buildBenchmarkPayload(body: unknown): Promise<JudgePayload> {
   if (runOnly !== undefined && typeof runOnly !== "boolean") {
     throw new RequestError("runOnly must be a boolean.", 400);
   }
-  if (language !== "cpp" && language !== "python") {
-    throw new RequestError("Custom stdin/stdout benchmarks currently support C++ and Python only.", 400);
+  if (language !== "c" && language !== "cpp" && language !== "python") {
+    throw new RequestError("Custom stdin/stdout benchmarks support C, C++, and Python.", 400);
   }
   if (typeof sourceCode !== "string") throw new RequestError("sourceCode must be a string.", 400);
   if (!sourceCodeWithinLimit(sourceCode)) {

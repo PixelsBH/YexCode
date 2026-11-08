@@ -12,7 +12,7 @@ Run Code and Submit Code are separate server-side operations:
 
 Run is an examples check, not a saved submission. Submit evaluates the complete suite and persists an authenticated user's source and result history. Custom benchmarks are separate from both: they send only the caller's JSON cases to YexJudge and never create a `Submission` record or affect progress.
 
-YexJudge supports C, C++, and Python for stdin/stdout execution, plus C++ and Python for metadata-driven Function and Class Mode. YexCode Run/Submit supports C++ and Python Function Mode; stdin/stdout and Class Mode are not yet wired into the web workspace.
+YexJudge supports C, C++, and Python for stdin/stdout execution, plus C++ and Python for metadata-driven Function and Class Mode. YexCode problem Run/Submit supports Function and Class Mode for C++ and Python. Its standalone custom stdin/stdout workspace supports C, C++, and Python.
 
 A Function Mode payload has this shape:
 
@@ -39,9 +39,35 @@ A Function Mode payload has this shape:
 }
 ```
 
+Class Mode uses problem-owned class metadata and operation-sequence cases. For example, an LRU Cache case sends constructor arguments, calls in order, and one expected result per call (`null` for `void` operations):
+
+```json
+{
+  "language": "cpp",
+  "mode": "class",
+  "sourceCode": "class LRUCache { ... };",
+  "class": {
+    "name": "LRUCache",
+    "constructor": { "params": [{ "name": "capacity", "type": "int" }] },
+    "operations": [
+      { "name": "get", "returnType": "int", "params": [{ "name": "key", "type": "int" }] },
+      { "name": "put", "returnType": "void", "params": [{ "name": "key", "type": "int" }, { "name": "value", "type": "int" }] }
+    ]
+  },
+  "testCases": [{
+    "id": 1,
+    "constructorArgs": [2],
+    "operations": [{ "name": "put", "args": [1, 10] }, { "name": "get", "args": [1] }],
+    "expected": [null, 10]
+  }]
+}
+```
+
+The browser still sends only `{ slug, language, sourceCode }`; YexCode chooses Function or Class Mode from the stored problem contract and loads tests server-side.
+
 ## Custom benchmark flow
 
-The `/benchmark` workspace is a standalone stdin/stdout runner for C++ and Python; it does not select or load a problem. Users provide source code and one or more editable cases containing raw stdin text and expected stdout. It sends `{ language, sourceCode, testCases: [{ id, input, expectedOutput }] }` to `POST /api/benchmark`. The endpoint validates and rate-limits the request, then forwards only those cases to YexJudge in `stdin` mode with the default execution limits. It does not query problem data, load or send visible or hidden problem tests, or write submission records. The endpoint accepts at most 50 cases and enforces the 1 MB request and 128 KB source limits. Results are polled through `GET /api/benchmark/:id`; per-case display is based on the caller's cases and the judge's aggregate result/failure details.
+The `/workspace` page (benchmark API) is a standalone stdin/stdout runner for C, C++, and Python; it does not select or load a problem. Users provide source code and one or more editable cases containing raw stdin text and expected stdout. It sends `{ language, sourceCode, testCases: [{ id, input, expectedOutput }] }` to `POST /api/benchmark`. The endpoint validates and rate-limits the request, then forwards only those cases to YexJudge in `stdin` mode with the default execution limits. It does not query problem data, load or send visible or hidden problem tests, or write submission records. The endpoint accepts at most 50 cases and enforces the 1 MB request and 128 KB source limits. Results are polled through `GET /api/benchmark/:id`; per-case display is based on the caller's cases and the judge's aggregate result/failure details.
 
 ## Problem data
 

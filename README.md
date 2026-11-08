@@ -1,6 +1,6 @@
 # YexCode
 
-YexCode is a LeetCode-like coding practice website for browsing problems, writing solutions, and viewing judge results. It owns the web app and reads problem records from MongoDB; problem authoring fixtures and seeding tools live in the sibling [YCProblems](../YCProblems) repository. Code is sent server-to-server to [YexJudge](../YexJudge), which executes submissions in isolated container sandboxes. YexJudge supports C, C++, and Python execution; YexCode Run/Submit supports C++ and Python Function Mode.
+YexCode is a LeetCode-like coding practice website for browsing problems, writing solutions, and viewing judge results. It owns the web app and reads problem records from MongoDB; problem authoring fixtures and seeding tools live in the sibling [YCProblems](../YCProblems) repository. Code is sent server-to-server to [YexJudge](../YexJudge), which executes submissions in isolated container sandboxes. YexJudge supports C, C++, and Python stdin/stdout execution plus C++ and Python Function/Class Mode. YexCode problem Run/Submit supports C++ and Python Function/Class Mode; its standalone stdin/stdout workspace supports C, C++, and Python.
 
 ## Requirements
 
