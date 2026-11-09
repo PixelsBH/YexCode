@@ -164,22 +164,22 @@ export default function BenchmarkWorkspace() {
   const isRunning = status === "submitting" || status === "queued" || status === "running";
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-7rem)] min-h-0 max-w-[1700px] flex-col overflow-hidden px-3 py-3 text-white sm:px-5">
-      <header className="mb-3 shrink-0">
-        <h1 className="text-3xl font-semibold">Workspace</h1>
-        <p className="mt-1 text-sm text-white/50">Write a standalone C, C++, or Python program and test it with custom stdin/stdout cases. Runs are not saved as submissions and never affect progress.</p>
+    <div className="mx-auto flex h-[calc(100dvh-8rem)] min-h-[28rem] max-w-[1700px] flex-col overflow-hidden px-1 py-2 text-white sm:px-2">
+      <header className="mb-4 flex shrink-0 flex-wrap items-end justify-between gap-3">
+        <div><p className="page-eyebrow mb-1">Sandbox</p><h1 className="page-title text-2xl sm:text-3xl">Workspace</h1><p className="mt-1.5 max-w-3xl text-xs leading-5 text-white/50 sm:text-sm">Write a standalone C, C++, or Python program and test it with custom stdin/stdout cases. Runs are not saved as submissions.</p></div>
+        <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] text-white/45">Custom input · No submission history</span>
       </header>
 
-      <div className="mb-3 flex shrink-0 flex-wrap items-end gap-3">
+      <div className="mb-3 flex shrink-0 flex-wrap items-end gap-3 rounded-xl border border-white/10 bg-white/[0.025] p-3">
         <label className="flex flex-col gap-1.5 text-xs text-white/55">
           Language
-          <select value={language} onChange={(event) => { const next = event.target.value as Language; setLanguage(next); setCode(starters[next]); setResult(null); setRunOutput(null); setStatus("idle"); }} className="rounded-md border border-white/15 bg-zinc-950 px-3 py-2 text-sm text-white">
+          <select value={language} onChange={(event) => { const next = event.target.value as Language; setLanguage(next); setCode(starters[next]); setResult(null); setRunOutput(null); setStatus("idle"); }} className="control-field px-3 py-2 text-sm text-white">
             <option value="c">C</option><option value="cpp">C++</option><option value="python">Python</option>
           </select>
         </label>
         <div className="ml-auto flex gap-2">
-          <button type="button" onClick={() => runBenchmark(true)} disabled={isRunning} className="rounded-md border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50">Run</button>
-          <button type="button" onClick={() => runBenchmark(false)} disabled={isRunning || cases.length === 0} className="rounded-md bg-violet-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="button" onClick={() => runBenchmark(true)} disabled={isRunning} className="rounded-lg border border-white/12 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-white/25 hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-50">Run</button>
+          <button type="button" onClick={() => runBenchmark(false)} disabled={isRunning || cases.length === 0} className="rounded-lg bg-violet-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50">
             {isRunning ? `${statusLabel(status)}…` : "Run tests"}
           </button>
         </div>
@@ -188,7 +188,7 @@ export default function BenchmarkWorkspace() {
       {error && <div role="alert" className="mb-3 shrink-0 rounded-lg border border-rose-400/20 bg-rose-400/5 px-4 py-3 text-sm text-rose-200">{error}</div>}
 
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(420px,0.75fr)] xl:grid-rows-1">
-        <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/35">
+        <section className="surface-panel flex min-h-0 min-w-0 flex-col overflow-hidden">
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
             <div><h2 className="text-sm font-medium">Program</h2><p className="mt-0.5 text-xs text-white/40">Standard input / standard output</p></div>
             <span aria-live="polite" className="text-xs text-white/45">{status === "idle" ? "Ready" : statusLabel(status)}</span>
@@ -199,14 +199,14 @@ export default function BenchmarkWorkspace() {
         </section>
 
         <section className="flex min-h-0 min-w-0 flex-col gap-3">
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/35 p-4">
+          <div className="surface-panel-raised flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl p-4">
             <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
               <div><h2 className="font-medium">Test cases</h2><p className="mt-1 text-xs text-white/45">Provide the exact stdin text and expected stdout for each run.</p></div>
               <button type="button" onClick={addCase} disabled={cases.length >= 50} className="shrink-0 rounded-md border border-white/15 px-3 py-2 text-xs text-white/75 hover:bg-white/5 disabled:opacity-40">Add case</button>
             </div>
             <div className="problem-panel-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
               {cases.map((testCase, index) => (
-                <article key={testCase.key} className="rounded-lg border border-white/10 bg-white/[0.025] p-3">
+                <article key={testCase.key} className="surface-panel-inset p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2"><h3 className="text-sm font-medium">Case {index + 1}</h3>{result && <span className={result.status === "accepted" || index < (result.passedTestCases ?? 0) ? "text-xs text-emerald-300" : result.failedTestCase?.id === index + 1 ? "text-xs text-rose-300" : "text-xs text-white/35"}>{result.status === "accepted" || index < (result.passedTestCases ?? 0) ? "Passed" : result.failedTestCase?.id === index + 1 ? "Failed" : "Not run"}</span>}</div>
                     <button type="button" onClick={() => removeCase(testCase.key)} disabled={cases.length <= 1} className="text-xs text-white/45 hover:text-rose-300 disabled:opacity-30">Remove</button>
@@ -225,7 +225,7 @@ export default function BenchmarkWorkspace() {
             <p className="mt-3 text-right text-xs text-white/40">{cases.length} / 50 cases maximum</p>
           </div>
 
-          <div className="flex h-[28%] min-h-36 shrink-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/35 p-4">
+          <div className="surface-panel-inset flex h-[28%] min-h-36 shrink-0 flex-col overflow-hidden p-4">
             <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
               <h2 className="font-medium">Output</h2>
               <span className="text-xs text-white/55">{runOutput !== null ? "Program output" : activeRunMode === "run" && isRunning ? statusLabel(status) : "Run the program to see output"}</span>

@@ -11,7 +11,7 @@ export default function ProblemWorkspaceTabs({ problem, problemSlug }: { problem
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent">
-      <div role="tablist" aria-label="Problem workspace" className="flex shrink-0 border-b border-white/[0.08] bg-white/[0.015] px-2">
+      <div role="tablist" aria-label="Problem workspace" className="flex shrink-0 border-b border-white/[0.08] bg-white/[0.025] px-2">
         <button
           id="problem-description-tab"
           type="button"
@@ -19,7 +19,7 @@ export default function ProblemWorkspaceTabs({ problem, problemSlug }: { problem
           aria-selected={activeTab === "description"}
           aria-controls="problem-description-panel"
           onClick={() => setActiveTab("description")}
-          className={`border-b-2 px-5 py-3 text-sm font-medium transition ${activeTab === "description" ? "border-violet-400 text-white" : "border-transparent text-white/50 hover:text-white/80"}`}
+          className={`border-b-2 px-5 py-3 text-sm font-medium transition ${activeTab === "description" ? "border-violet-400 text-violet-100" : "border-transparent text-white/45 hover:text-white/80"}`}
         >
           Description
         </button>
@@ -30,7 +30,7 @@ export default function ProblemWorkspaceTabs({ problem, problemSlug }: { problem
           aria-selected={activeTab === "submissions"}
           aria-controls="problem-submissions-panel"
           onClick={() => setActiveTab("submissions")}
-          className={`border-b-2 px-5 py-3 text-sm font-medium transition ${activeTab === "submissions" ? "border-violet-400 text-white" : "border-transparent text-white/50 hover:text-white/80"}`}
+          className={`border-b-2 px-5 py-3 text-sm font-medium transition ${activeTab === "submissions" ? "border-violet-400 text-violet-100" : "border-transparent text-white/45 hover:text-white/80"}`}
         >
           Submissions
         </button>

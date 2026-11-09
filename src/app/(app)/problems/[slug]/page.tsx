@@ -19,7 +19,7 @@ export default async function ProblemPage({ params }: { params: Params }) {
   const problem = await res.json();
 
   return (
-    <div className="grid h-[calc(100vh-7rem)] grid-cols-1 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80 shadow-2xl shadow-black/20 lg:grid-cols-2">
+    <div className="mx-auto grid h-[calc(100dvh-8rem)] min-h-[34rem] w-full max-w-[1800px] grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] overflow-hidden rounded-2xl border border-white/[0.15] bg-[#15151c] shadow-2xl shadow-black/30 lg:grid-cols-2 lg:grid-rows-1">
       <div className="min-h-0 min-w-0 border-b border-white/10 lg:border-b-0 lg:border-r">
         <ProblemWorkspaceTabs problem={problem} problemSlug={slug} />
       </div>

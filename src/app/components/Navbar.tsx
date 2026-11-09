@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   SignInButton,
   SignedIn,
@@ -10,10 +13,15 @@ import {
 import "./Navbar.css";
 
 export default function Navbar() {
+  const pathname = usePathname();
+  const isActive = (href: string) => href === "/workspace"
+    ? pathname === href || pathname === "/benchmark"
+    : pathname === href || pathname.startsWith(`${href}/`);
+
   return (
-    <header className="fixed inset-x-0 top-3 z-50 flex justify-center px-2">
-      <div className="liquid-glass-nav w-full max-w-[1800px] rounded-full p-1">
-        <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-2 py-2 sm:gap-5 sm:px-5">
+    <header className="fixed inset-x-0 top-0 z-50 flex justify-center px-0 sm:px-4 sm:pt-3">
+      <div className="liquid-glass-nav w-full max-w-[1800px] sm:rounded-2xl">
+        <div className="relative z-10 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 sm:gap-5 sm:px-5 sm:py-3">
           <Link
             href="/"
             className="justify-self-start whitespace-nowrap"
@@ -30,21 +38,20 @@ export default function Navbar() {
 
           <nav
             aria-label="Main navigation"
-            className="liquid-glass-links flex w-max min-w-0 items-center justify-start gap-0.5 overflow-x-auto text-xs sm:gap-5 sm:text-base"
+            className="liquid-glass-links flex min-w-0 items-center justify-center gap-0.5 overflow-x-auto text-xs sm:gap-2 sm:text-sm"
           >
-            <Link href="/workspace" className="liquid-glass-link">
-              <span className="sm:hidden">Work</span>
-              <span className="hidden sm:inline">Workspace</span>
+            <Link href="/workspace" aria-current={isActive("/workspace") ? "page" : undefined} className={`liquid-glass-link ${isActive("/workspace") ? "is-active" : ""}`}>
+              Workspace
             </Link>
-            <Link href="/problems-list" className="liquid-glass-link">
+            <Link href="/problems-list" aria-current={isActive("/problems-list") ? "page" : undefined} className={`liquid-glass-link ${isActive("/problems-list") ? "is-active" : ""}`}>
               Problems
             </Link>
-            <Link href="/playlists" className="liquid-glass-link">
+            <Link href="/playlists" aria-current={isActive("/playlists") ? "page" : undefined} className={`liquid-glass-link ${isActive("/playlists") ? "is-active" : ""}`}>
               Playlists
             </Link>
           </nav>
 
-          <div className="flex w-[4.5rem] shrink-0 items-center justify-end gap-1 justify-self-end sm:w-40 sm:gap-2">
+          <div className="flex shrink-0 items-center justify-end gap-1 justify-self-end sm:gap-2">
             <SignedOut>
               <SignInButton>
                 <button type="button" className="liquid-glass-action">
@@ -55,7 +62,7 @@ export default function Navbar() {
             </SignedOut>
 
             <SignedIn>
-              <Link href="/profile" className="liquid-glass-link">Profile</Link>
+              <Link href="/profile" aria-current={isActive("/profile") ? "page" : undefined} className={`liquid-glass-link hidden sm:inline-flex ${isActive("/profile") ? "is-active" : ""}`}>Profile</Link>
               <UserButton />
             </SignedIn>
           </div>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import ProblemsTable from "@/app/components/ProblemsTable";
 
 async function getProblems() {
@@ -12,13 +13,16 @@ export default async function ProblemsListPage() {
   const problems = await getProblems();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      <h1 className="text-3xl font-semibold text-white mb-1">Problems</h1>
-      <p className="text-white/50 mb-6">
-        Practice problems to benchmark your skills
-      </p>
-
-      <ProblemsTable initialData={problems} />
-    </div>
+    <div className="mx-auto max-w-7xl px-1 py-5 sm:px-2 sm:py-8">
+        <header className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <p className="page-eyebrow mb-2">Practice library</p>
+            <h1 className="page-title">Problems</h1>
+            <p className="page-description mt-3">Build consistency with focused practice. Search the catalog and filter by your submission progress.</p>
+          </div>
+          <Link href="/workspace" className="inline-flex w-fit items-center gap-2 rounded-lg border border-violet-300/20 bg-violet-300/[0.07] px-4 py-2.5 text-sm font-medium text-violet-100 transition hover:border-violet-300/35 hover:bg-violet-300/[0.12]">Open workspace <span aria-hidden="true">↗</span></Link>
+        </header>
+        <ProblemsTable initialData={problems} />
+      </div>
   );
 }

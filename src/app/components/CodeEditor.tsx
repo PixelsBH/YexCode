@@ -478,8 +478,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-transparent">
       {/* Top Bar */}
-      <div className="flex shrink-0 items-center justify-between border-b border-white/[0.08] bg-white/[0.015] px-4 py-2">
-        <div className="flex items-center gap-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] bg-white/[0.025] px-3 py-2 sm:px-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
           <span className="text-xs text-white/50" aria-live="polite">
             {draftStatus === "saved" && "Saved locally"}
             {draftStatus === "template" && "Using template"}
@@ -496,7 +496,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value as EditorLanguage)}
-            className="bg-black/50 border border-white/15 text-white text-sm rounded-md px-3 py-1.5"
+            className="control-field px-2.5 py-1.5 text-xs text-white sm:text-sm"
           >
             {Object.keys(languageExtensions).map((lang) => (
               <option key={lang} value={lang}>
@@ -509,7 +509,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           <select
             value={theme}
             onChange={(e) => setTheme(e.target.value)}
-            className="bg-black/50 border border-white/15 text-white text-sm rounded-md px-3 py-1.5"
+            className="control-field px-2.5 py-1.5 text-xs text-white sm:text-sm"
           >
             {Object.keys(themeMap).map((t) => (
               <option key={t} value={t}>
@@ -518,18 +518,18 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             ))}
           </select>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <button
             onClick={handleRun}
             disabled={isRunBusy || isSubmitBusy}
-            className="flex items-center gap-2 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-white/80 transition hover:bg-white/[0.09] hover:text-white disabled:opacity-50 sm:text-sm"
           >
             ▶ Run Code
           </button>
           <button
             onClick={handleSubmit}
             disabled={isRunBusy || isSubmitBusy}
-            className="rounded-md bg-[#6c47ff] px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-400 disabled:opacity-50 sm:text-sm"
           >
             Submit Code
           </button>

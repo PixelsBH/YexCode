@@ -2,19 +2,12 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: linear-gradient(
-    125deg,
-    rgba(255, 255, 255, 0.16),
-    rgba(255, 255, 255, 0.07) 42%,
-    rgba(255, 255, 255, 0.1)
-  );
-  box-shadow:
-    0 14px 40px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.07);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 0;
+  background: rgba(9, 9, 11, 0.84);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
 }
 
 .liquid-glass-nav::before,
@@ -28,9 +21,7 @@
 .liquid-glass-nav::before {
   inset: 0;
   border-radius: inherit;
-  background:
-    radial-gradient(ellipse at 18% 0%, rgba(255, 255, 255, 0.18), transparent 48%),
-    linear-gradient(115deg, rgba(255, 255, 255, 0.07), transparent 38%, rgba(151, 126, 255, 0.08));
+  background: linear-gradient(115deg, rgba(124, 92, 255, 0.05), transparent 38%, rgba(56, 189, 248, 0.035));
 }
 
 .liquid-glass-nav::after {
@@ -50,7 +41,7 @@
 }
 
 .liquid-glass-links {
-  max-width: max(2.5rem, min(12rem, calc(100vw - 13rem)));
+  max-width: 100%;
 }
 
 .liquid-glass-nav nav {
@@ -63,9 +54,9 @@
 
 .liquid-glass-link {
   flex: 0 0 auto;
-  border-radius: 9999px;
-  padding: 0.45rem 0.55rem;
-  color: rgba(255, 255, 255, 0.76);
+  border-radius: 0.65rem;
+  padding: 0.45rem 0.65rem;
+  color: rgba(255, 255, 255, 0.62);
   font-weight: 600;
   transition:
     color 160ms ease,
@@ -74,8 +65,13 @@
 }
 
 .liquid-glass-link:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.07);
   color: #fff;
+}
+
+.liquid-glass-link.is-active {
+  background: rgba(139, 108, 255, 0.15);
+  color: #e2d9ff;
 }
 
 .liquid-glass-link:focus-visible,
@@ -134,8 +130,15 @@
 }
 
 @media (max-width: 639px) {
+  .liquid-glass-nav {
+    border-right: 0;
+    border-left: 0;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+  }
+
   .liquid-glass-link {
-    padding: 0.35rem 0.25rem;
+    padding: 0.4rem 0.45rem;
+    font-size: 0.72rem;
   }
 
   .liquid-glass-action {
@@ -146,6 +149,10 @@
 }
 
 @media (min-width: 640px) {
+  .liquid-glass-nav {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
   .liquid-glass-links {
     max-width: none;
   }

@@ -37,9 +37,9 @@ The problem editor and server request flow support C++ and Python Function and C
 
 Renamed **For You** to **Playlists**. The page provides three curated sets—Blind 75, Blind 150, and Top 30 Interview Problems—and supports creating, editing, and deleting personal playlists with a searchable picker of available problems. Curated lists are grouped by topic; personal lists are shown without categories. Users manually check problems off independently in each playlist, with progress saved per user. Problem titles link to YexCode and the LeetCode icon links to the matching LeetCode problem.
 
-### Feature 3 — UI overhaul
+### Feature 3 — UI overhaul (complete)
 
-Plan and deliver a cohesive UI overhaul for YexCode, improving visual consistency, usability, and responsive behavior across the app.
+Applied a consistent dark visual system, shared surface and control styles, clearer navigation and active-page states, and responsive layouts across the non-hero experience: problem discovery and details, coding workspace, playlists, profile, and authentication. The landing hero remains unchanged for Feature 4.
 
 ### Feature 4 — Production-ready hero page
 

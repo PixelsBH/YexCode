@@ -77,8 +77,8 @@ export default function ProblemsTable({ initialData }: { initialData: ProblemLis
   }, [initialData, page, progress, search]);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40 backdrop-blur-xl">
-      <div className="flex flex-col gap-3 border-b border-white/10 p-4 sm:flex-row">
+    <section className="surface-panel overflow-hidden">
+      <div className="flex flex-col gap-3 border-b border-white/10 bg-white/[0.025] p-4 sm:flex-row sm:items-center">
         <label className="flex-1">
           <span className="sr-only">Search problems by title</span>
           <input
@@ -89,7 +89,7 @@ export default function ProblemsTable({ initialData }: { initialData: ProblemLis
               setSearch(event.target.value);
               setPage(1);
             }}
-            className="w-full rounded-md border border-white/15 bg-black/50 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
+            className="control-field w-full px-4 py-2.5 text-sm text-white placeholder:text-white/35"
           />
         </label>
         <label className="sm:w-64">
@@ -100,7 +100,7 @@ export default function ProblemsTable({ initialData }: { initialData: ProblemLis
               setProgress(event.target.value as "all" | "solved" | "attempted" | "unattempted");
               setPage(1);
             }}
-            className="w-full rounded-md border border-white/15 bg-black/50 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/30"
+            className="control-field w-full px-3 py-2.5 text-sm text-white"
           >
             <option value="all">All problems</option>
             <option value="solved">Solved</option>
@@ -110,37 +110,37 @@ export default function ProblemsTable({ initialData }: { initialData: ProblemLis
         </label>
       </div>
 
-      <div className="grid grid-cols-12 border-b border-white/10 px-5 py-3 text-md font-bold text-white">
-        <div className="col-span-7">Title</div>
+      <div className="hidden grid-cols-12 border-b border-white/10 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/40 sm:grid">
+        <div className="col-span-7">Problem</div>
         <div className="col-span-3">Difficulty</div>
         <div className="col-span-2 text-right">Progress</div>
       </div>
 
-      <ul aria-busy={loading}>
+      <ul className="surface-striped" aria-busy={loading}>
         {data.items.map((problem) => (
-          <li key={problem.slug} className="grid grid-cols-12 border-b border-white/5 px-5 py-4 transition hover:bg-white/5">
-            <div className="col-span-7">
-              <Link href={`/problems/${problem.slug}`} className="text-sm text-blue-400 hover:underline">
+          <li key={problem.slug} className="grid grid-cols-2 gap-y-2.5 border-b border-white/[0.06] px-4 py-4 transition-colors hover:bg-white/[0.035] sm:grid-cols-12 sm:items-center sm:px-5">
+            <div className="col-span-2 min-w-0 sm:col-span-7">
+              <Link href={`/problems/${problem.slug}`} className="text-sm font-medium text-white transition-colors hover:text-violet-200">
                 {problem.title}
               </Link>
             </div>
-            <div className="col-span-3">
-              <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${difficultyColor(problem.difficulty)}`}>
+            <div className="col-span-1 sm:col-span-3">
+              <span className={`inline-flex rounded-full border border-current/10 px-2.5 py-1 text-[11px] font-medium ${difficultyColor(problem.difficulty)}`}>
                 {problem.difficulty}
               </span>
             </div>
-            <div className="col-span-2 text-right text-xs">
-              {problem.progress === "solved" ? <span className="text-green-400">Solved</span> : problem.progress === "attempted" ? <span className="text-yellow-300">Attempted</span> : problem.progress === "unattempted" ? <span className="text-white/40">Unattempted</span> : <span className="text-white/25">—</span>}
+            <div className="col-span-1 text-right text-xs sm:col-span-2">
+              {problem.progress === "solved" ? <span className="inline-flex rounded-full bg-emerald-400/10 px-2.5 py-1 text-emerald-300">Solved</span> : problem.progress === "attempted" ? <span className="inline-flex rounded-full bg-amber-300/10 px-2.5 py-1 text-amber-200">Attempted</span> : problem.progress === "unattempted" ? <span className="text-white/40">Not started</span> : <span className="text-white/25">Sign in to track</span>}
             </div>
           </li>
         ))}
 
         {data.items.length === 0 && (
-          <li className="px-5 py-8 text-center text-white/50">No problems found</li>
+          <li className="px-5 py-14 text-center"><span className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.05] text-lg text-white/40">⌕</span><span className="block text-sm font-medium text-white/70">No problems found</span><span className="mt-1 block text-xs text-white/40">Try a different search or progress filter.</span></li>
         )}
       </ul>
 
-      <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 bg-white/[0.015] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div className="text-sm text-white/50" aria-live="polite">
           {loading ? "Loading problems…" : `${data.total} problem${data.total === 1 ? "" : "s"} · Page ${data.page} of ${data.totalPages}`}
           {error && <span className="ml-2 text-red-300">{error}</span>}
@@ -168,6 +168,6 @@ export default function ProblemsTable({ initialData }: { initialData: ProblemLis
           </nav>
         )}
       </div>
-    </div>
+    </section>
   );
 }

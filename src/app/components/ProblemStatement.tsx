@@ -36,19 +36,20 @@ const formatValue = (value: unknown): string => {
 
 export default function ProblemStatement({ problem }: ProblemStatementProps) {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-2 text-white">{problem.title}</h1>
-      <div className="mb-4">
-        <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-sm text-white/80">
+    <article className="px-5 py-5 sm:px-7 sm:py-7">
+      <header className="mb-6 border-b border-white/[0.07] pb-5">
+        <p className="page-eyebrow mb-2">Problem</p>
+        <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{problem.title}</h1>
+        <span className={`mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-medium ${problem.difficulty === "Easy" ? "border-emerald-300/15 bg-emerald-300/[0.07] text-emerald-200" : problem.difficulty === "Hard" ? "border-rose-300/15 bg-rose-300/[0.07] text-rose-200" : "border-amber-200/15 bg-amber-200/[0.07] text-amber-100"}`}>
           {problem.difficulty}
         </span>
-      </div>
+      </header>
 
-      <p className="mb-4 text-white">{problem.description}</p>
+      <p className="mb-6 whitespace-pre-line text-sm leading-7 text-white/75">{problem.description}</p>
 
 
       {problem.companies && problem.companies.length > 0 && (
-        <details className="mb-4 rounded-md border border-white/10 bg-black/20 px-3 py-2">
+        <details className="mb-4 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
           <summary className="cursor-pointer text-sm font-medium text-white/70">Companies</summary>
           <div className="mt-2 flex flex-wrap gap-2">
             {problem.companies.map((company) => (
@@ -63,10 +64,10 @@ export default function ProblemStatement({ problem }: ProblemStatementProps) {
 
       {problem.examples && problem.examples.length > 0 && (
         <div className="mb-4">
-          <h2 className="font-semibold mb-4 text-white text-lg">Examples:</h2>
+          <h2 className="mb-3 text-base font-semibold text-white">Examples</h2>
           {problem.examples.map((ex, i) => (
-            <div key={i} className="mb-4 p-4 bg-gray-900/50 border border-gray-700 rounded-lg">
-              <div className="text-sm font-semibold text-blue-400 mb-3">
+            <div key={i} className="mb-3 rounded-xl border border-white/[0.1] bg-[#1d1d26] p-4">
+              <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-violet-200">
                 Example {i + 1}:
               </div>
 
@@ -103,9 +104,9 @@ export default function ProblemStatement({ problem }: ProblemStatementProps) {
       )}
 
       {problem.constraints && problem.constraints.length > 0 && (
-        <div>
-          <h2 className="font-semibold mb-2 text-white">Constraints:</h2>
-          <ul className="list-disc ml-5 text-white">
+        <div className="mt-6 rounded-xl border border-white/[0.1] bg-[#1b1b23] p-4">
+          <h2 className="mb-2 text-sm font-semibold text-white">Constraints</h2>
+          <ul className="list-disc space-y-1 pl-5 text-sm leading-6 text-white/65">
             {problem.constraints.map((c: string, i: number) => (
               <li key={i}>{c}</li>
             ))}
@@ -114,17 +115,17 @@ export default function ProblemStatement({ problem }: ProblemStatementProps) {
       )}
 
       {problem.limits && (
-        <div className="mt-4">
-          <h2 className="font-semibold mb-2 text-white">Limits:</h2>
-          <div className="text-white">
-            <div>Time limit: {problem.limits.timeLimitMs} ms</div>
-            <div>Memory limit: {problem.limits.memoryLimitMb} MB</div>
+        <div className="mt-4 rounded-xl border border-white/[0.1] bg-[#1b1b23] p-4">
+          <h2 className="mb-2 text-sm font-semibold text-white">Limits</h2>
+          <div className="grid gap-2 text-sm text-white/65 sm:grid-cols-2">
+            <div>Time limit: <span className="font-mono text-white/85">{problem.limits.timeLimitMs} ms</span></div>
+            <div>Memory limit: <span className="font-mono text-white/85">{problem.limits.memoryLimitMb} MB</span></div>
           </div>
         </div>
       )}
 
       {problem.topics && problem.topics.length > 0 && (
-        <details className="mt-4 rounded-md border border-white/10 bg-black/20 px-3 py-2">
+        <details className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
           <summary className="cursor-pointer text-sm font-medium text-white/70">Reveal topic hints</summary>
           <div className="mt-2 flex flex-wrap gap-2">
             {problem.topics.map((topic) => (
@@ -137,13 +138,13 @@ export default function ProblemStatement({ problem }: ProblemStatementProps) {
       )}
 
       {problem.hints && problem.hints.length > 0 && (
-        <details className="mt-4 rounded-md border border-white/10 bg-black/20 px-3 py-2">
+        <details className="mt-4 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
           <summary className="cursor-pointer text-sm font-medium text-white/70">Hints</summary>
           <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-white/70">
             {problem.hints.map((hint, index) => <li key={index}>{hint}</li>)}
           </ol>
         </details>
       )}
-    </div>
+    </article>
   );
 }

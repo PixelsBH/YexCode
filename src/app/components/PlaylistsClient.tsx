@@ -140,15 +140,15 @@ export default function PlaylistsClient() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-7xl px-1 py-5 sm:px-2 sm:py-8">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">Practice with a plan</p>
-          <h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Playlists</h1>
-          <p className="mt-2 max-w-2xl text-sm text-white/55">Curated roadmaps and your own collections. Open a playlist to browse by topic and check your progress.</p>
+          <p className="page-eyebrow">Practice with a plan</p>
+          <h1 className="page-title mt-2">Playlists</h1>
+          <p className="page-description mt-3">Curated roadmaps and your own collections. Track the problems you want to come back to.</p>
         </div>
         {data?.authenticated && (
-          <button type="button" onClick={() => setEditing("new")} className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-violet-500">
+          <button type="button" onClick={() => setEditing("new")} className="rounded-lg bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-400">
             Create playlist
           </button>
         )}
@@ -163,7 +163,7 @@ export default function PlaylistsClient() {
             <div className="mb-4 flex items-end justify-between gap-3">
               <div><h2 id="curated-playlists-title" className="text-xl font-semibold text-white">Curated playlists</h2><p className="mt-1 text-sm text-white/45">Check off problems independently for each playlist, including ones you solve outside YexCode.</p></div>
             </div>
-            <div className="mx-auto grid w-full max-w-5xl gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="surface-grid mx-auto grid w-full max-w-5xl gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {curated.map((playlist) => <PlaylistCard key={playlist.id} playlist={playlist} authenticated={data.authenticated} onOpen={() => setSelected(playlist)} />)}
             </div>
           </section>
@@ -174,9 +174,9 @@ export default function PlaylistsClient() {
             </div>
             {personal.length === 0 ? (
               <button type="button" onClick={() => setEditing("new")} className="flex min-h-36 w-full flex-col items-center justify-center rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-center transition hover:border-violet-300/40 hover:bg-white/[0.04]">
-                <span className="text-2xl text-violet-300">＋</span><span className="mt-2 text-sm font-medium text-white">Create your first playlist</span><span className="mt-1 text-xs text-white/45">Add problems by their future-ready slugs, even before they are available.</span>
+                <span className="text-2xl text-violet-300">＋</span><span className="mt-2 text-sm font-medium text-white">Create your first playlist</span><span className="mt-1 text-xs text-white/45">Search for available problems and add them to your list.</span>
               </button>
-            ) : <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            ) : <div className="surface-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {personal.map((playlist) => <PlaylistCard key={playlist.id} playlist={playlist} authenticated={data.authenticated} onOpen={() => setSelected(playlist)} onEdit={() => setEditing(playlist)} onDelete={() => void deletePlaylist(playlist)} />)}
             </div>}
           </section>}
@@ -227,7 +227,7 @@ function PlaylistCard({ playlist, authenticated, onOpen, onEdit, onDelete }: {
 }) {
   const stats = playlistStats(playlist);
   return (
-    <article className="flex min-h-52 flex-col rounded-xl border border-white/10 bg-black/35 p-5 transition hover:border-violet-300/25 hover:bg-white/[0.035]">
+    <article className="surface-panel flex min-h-52 flex-col p-5 transition hover:border-violet-300/25 hover:bg-[#1d1d26]">
       <button type="button" onClick={onOpen} className="flex flex-1 flex-col text-left">
         <span className="text-xs font-medium uppercase tracking-wide text-violet-300">{playlist.problems.length} problems</span>
         <span className="mt-2 text-lg font-semibold text-white">{playlist.name}</span>
@@ -237,8 +237,8 @@ function PlaylistCard({ playlist, authenticated, onOpen, onEdit, onDelete }: {
         </span>
       </button>
       {(onEdit || onDelete) && <div className="mt-4 flex gap-2 border-t border-white/10 pt-3">
-        {onEdit && <button type="button" onClick={onEdit} className="text-xs text-white/55 hover:text-white">Edit</button>}
-        {onDelete && <button type="button" onClick={onDelete} className="ml-auto text-xs text-rose-200/65 hover:text-rose-200">Delete</button>}
+        {onEdit && <button type="button" onClick={onEdit} className="rounded-md px-2 py-1 text-xs text-white/55 transition hover:bg-white/[0.06] hover:text-white">Edit</button>}
+        {onDelete && <button type="button" onClick={onDelete} className="ml-auto rounded-md px-2 py-1 text-xs text-rose-200/65 transition hover:bg-rose-300/[0.08] hover:text-rose-200">Delete</button>}
       </div>}
     </article>
   );
@@ -256,7 +256,7 @@ function PlaylistSheet({ playlist, showTopics, pendingProgress, onClose, onToggl
   const [collapsedTopics, setCollapsedTopics] = useState<Record<string, boolean>>({});
   return (
     <div className="fixed inset-0 z-[70] grid items-start overflow-y-auto bg-black/70 p-3 pt-24 backdrop-blur-sm sm:px-5 sm:pb-5 sm:pt-24" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="playlist-sheet-title" className="flex max-h-[calc(100dvh-8rem)] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl sm:mx-auto sm:max-w-5xl">
+      <section role="dialog" aria-modal="true" aria-labelledby="playlist-sheet-title" className="flex max-h-[calc(100dvh-8rem)] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111116] shadow-2xl shadow-black/50 sm:mx-auto sm:max-w-5xl">
         <header className="flex items-start justify-between gap-5 border-b border-white/10 p-5 sm:p-6">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-violet-300">Playlist · {playlist.problems.length} problems</p>
@@ -391,7 +391,7 @@ function PlaylistEditor({ playlist, saving, onClose, onSave }: {
 
   return (
     <div className="fixed inset-0 z-[80] grid items-start overflow-y-auto bg-black/70 p-3 pt-24 backdrop-blur-sm sm:px-5 sm:pb-5 sm:pt-24" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
-      <form onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="playlist-editor-title" className="flex max-h-[calc(100dvh-8rem)] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl sm:mx-auto sm:max-w-4xl">
+      <form onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="playlist-editor-title" className="flex max-h-[calc(100dvh-8rem)] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111116] shadow-2xl shadow-black/50 sm:mx-auto sm:max-w-4xl">
         <header className="flex items-center justify-between border-b border-white/10 p-5 sm:px-6">
           <div><p className="text-xs uppercase tracking-wide text-violet-300">Your collection</p><h2 id="playlist-editor-title" className="mt-1 text-xl font-semibold text-white">{playlist ? "Edit playlist" : "Create playlist"}</h2></div>
           <button type="button" onClick={onClose} disabled={saving} className="rounded-md border border-white/10 px-3 py-1.5 text-sm text-white/65 hover:bg-white/5 disabled:opacity-40">Close</button>
