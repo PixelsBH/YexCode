@@ -33,9 +33,9 @@ The browser calls YexCode and never knows the YexJudge host. It does not provide
 
 The problem editor and server request flow support C++ and Python Function and Class Mode; each problem's stored contract selects its mode automatically, with separate device-local drafts and language-specific editor highlighting. The standalone stdin/stdout workspace supports C, C++, and Python. Device-local drafts, clear-draft control, and custom stdin/stdout runs are implemented.
 
-### Feature 2 — Playlists
+### Feature 2 — Playlists (complete)
 
-Rename **For You** to **Playlists**. Provide ready-made curated problem lists and let users create and manage multiple personalized lists, each containing problems they choose.
+Renamed **For You** to **Playlists**. The page provides three curated sets—Blind 75, Blind 150, and Top 30 Interview Problems—and supports creating, editing, and deleting personal playlists with a searchable picker of available problems. Curated lists are grouped by topic; personal lists are shown without categories. Users manually check problems off independently in each playlist, with progress saved per user. Problem titles link to YexCode and the LeetCode icon links to the matching LeetCode problem.
 
 ### Feature 3 — UI overhaul
 

@@ -39,8 +39,8 @@ export default function Navbar() {
             <Link href="/problems-list" className="liquid-glass-link">
               Problems
             </Link>
-            <Link href="/foryou" className="liquid-glass-link">
-              For You
+            <Link href="/playlists" className="liquid-glass-link">
+              Playlists
             </Link>
           </nav>
 

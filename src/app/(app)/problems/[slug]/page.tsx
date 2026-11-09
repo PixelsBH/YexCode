@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import ProblemWorkspaceTabs from "@/app/components/ProblemWorkspaceTabs";
 import CodeEditor from "@/app/components/CodeEditor";
 
@@ -12,9 +13,8 @@ export default async function ProblemPage({ params }: { params: Params }) {
     { cache: "no-store" }
   );
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch problem");
-  }
+  if (res.status === 404) notFound();
+  if (!res.ok) throw new Error("Failed to fetch problem");
 
   const problem = await res.json();
 

@@ -71,14 +71,14 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const page = Math.min(requestedPage, totalPages);
     const items = await Problem.find(filter)
-      .select("slug title difficulty")
+      .select("slug title difficulty topics")
       .sort({ title: 1, slug: 1 })
       .skip((page - 1) * pageSize)
       .limit(pageSize)
       .lean();
 
     return NextResponse.json({
-      items: items.map((item) => ({ ...item, progress: statusBySlug.get(item.slug) ?? (user ? "unattempted" : null) })),
+      items: items.map((item) => ({ ...item, topics: item.topics ?? [], progress: statusBySlug.get(item.slug) ?? (user ? "unattempted" : null) })),
       authenticated: Boolean(user),
       page,
       pageSize,
