@@ -35,7 +35,7 @@ The problem editor and server request flow support C++ and Python Function and C
 
 ### Feature 2 — Playlists (complete)
 
-Renamed **For You** to **Playlists**. The page provides three curated sets—Blind 75, Blind 150, and Top 30 Interview Problems—and supports creating, editing, and deleting personal playlists with a searchable picker of available problems. Curated lists are grouped by topic; personal lists are shown without categories. Users manually check problems off independently in each playlist, with progress saved per user. Problem titles link to YexCode and the LeetCode icon links to the matching LeetCode problem.
+Renamed **For You** to **Playlists**. The page provides three curated sets—Blind 75, Blind 150, and Top 30 Interview Problems—plus company-wise interview lists generated from the `leetcode-companywise-interview-questions` CSV snapshot. It supports creating, editing, and deleting personal playlists with a searchable picker of available problems. Curated lists are grouped by topic; personal and company lists are flat. Users manually check problems off independently in each playlist, with progress saved per user. Problem titles link to YexCode and the LeetCode icon links to the matching LeetCode problem.
 
 ### Feature 3 — UI overhaul (complete)
 

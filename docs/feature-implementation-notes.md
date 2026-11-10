@@ -16,11 +16,7 @@ YexCode's `smoke:two-sum` reads its fixture from the sibling YCProblems reposito
 
 For local development databases with curated hidden suites, YCProblems' `sync:metadata` command updates topics, companies, hints, and private reference solutions without replacing test suites. YCProblems' `seed` and `sync:metadata` commands refuse to run when `NODE_ENV=production`. These safeguards do not make the checked-in reference solutions safe to include in a production artifact.
 
-Open work remains in the plan: before production deployment, keep YCProblems reference solutions out of production artifacts and the production database, and review existing problems' hidden-case coverage for gaps. The YCProblems `/add-problem` skill now requires a coverage audit when future problems are authored. See [deployment notes](deployment.md) and [problem data integration](integration.md) for related operational details.
-
-## Discovery and platform features (Feature 9 — implemented)
-
-Problem discovery includes title search, deterministic pagination sorted by title and slug, and authenticated Solved, Attempted (not solved), and Unattempted filters based on persisted submissions. The problem list intentionally does not filter or reveal topics; topics remain a collapsed, user-revealed hint on the problem page, where multiple topics may be shown together. The `/foryou` page contains three curated learning paths. Example explanations were supported already.
+Before production deployment, keep YCProblems reference solutions out of production artifacts and the production database. The hidden-case coverage audit for the seven existing fixtures is complete; continue the audit when problems are added or edited. The YCProblems `/add-problem` skill requires this review for future problems. See [deployment notes](deployment.md) and [problem data integration](integration.md) for related operational details.
 
 ### Further ideas (not committed roadmap work)
 

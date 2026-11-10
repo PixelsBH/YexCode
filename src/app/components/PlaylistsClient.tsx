@@ -27,6 +27,8 @@ type PlaylistResponse = {
 type DraftProblem = { slug: string; title: string; topic: string };
 type AvailableProblem = { slug: string; title: string; difficulty: string; topics: string[] };
 type ProblemSearchResponse = { items: AvailableProblem[]; totalPages: number; error?: string };
+type CompanyPlaylistSummary = { id: string; name: string; description: string; problemCount: number; completedCount: number };
+type CompanyPlaylistResponse = { companies: CompanyPlaylistSummary[]; error?: string };
 
 function playlistStats(playlist: Playlist) {
   const completed = playlist.problems.filter((problem) => problem.completed === true).length;
@@ -52,6 +54,12 @@ export default function PlaylistsClient() {
   const [editing, setEditing] = useState<Playlist | null | "new">(null);
   const [saving, setSaving] = useState(false);
   const [pendingProgress, setPendingProgress] = useState<Set<string>>(new Set());
+  const [companies, setCompanies] = useState<CompanyPlaylistSummary[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(true);
+  const [companiesError, setCompaniesError] = useState("");
+  const [companySearch, setCompanySearch] = useState("");
+  const [companyPage, setCompanyPage] = useState(1);
+  const [selectedLoading, setSelectedLoading] = useState(false);
 
   const loadPlaylists = useCallback(async () => {
     setLoading(true);
@@ -70,6 +78,26 @@ export default function PlaylistsClient() {
 
   useEffect(() => { void loadPlaylists(); }, [loadPlaylists]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadCompanies() {
+      setCompaniesLoading(true);
+      setCompaniesError("");
+      try {
+        const response = await fetch("/api/playlists/companies", { cache: "no-store", signal: controller.signal });
+        const body = await response.json() as CompanyPlaylistResponse;
+        if (!response.ok) throw new Error(body.error || "Could not load company playlists.");
+        setCompanies(body.companies);
+      } catch (loadError) {
+        if (!controller.signal.aborted) setCompaniesError(loadError instanceof Error ? loadError.message : "Could not load company playlists.");
+      } finally {
+        if (!controller.signal.aborted) setCompaniesLoading(false);
+      }
+    }
+    void loadCompanies();
+    return () => controller.abort();
+  }, []);
+
   const closeOverlays = useCallback(() => {
     setSelected(null);
     setEditing(null);
@@ -86,6 +114,13 @@ export default function PlaylistsClient() {
 
   const personal = data?.personal ?? [];
   const curated = data?.curated ?? [];
+  const filteredCompanies = useMemo(() => {
+    const query = companySearch.trim().toLocaleLowerCase();
+    return companies.filter((company) => company.name.toLocaleLowerCase().includes(query));
+  }, [companies, companySearch]);
+  const companyPageSize = 24;
+  const companyPageCount = Math.max(1, Math.ceil(filteredCompanies.length / companyPageSize));
+  const visibleCompanies = filteredCompanies.slice((companyPage - 1) * companyPageSize, companyPage * companyPageSize);
 
   async function toggleCompletion(playlist: Playlist, problem: PlaylistProblem) {
     if (problem.completed === null) return;
@@ -103,6 +138,13 @@ export default function PlaylistsClient() {
         personal: current.personal.map(update),
       } : current);
       setSelected((current) => current?.id === playlist.id ? update(current) : current);
+      if (playlist.id.startsWith("company:")) {
+        const companyId = playlist.id.slice("company:".length);
+        const countDelta = isCompleted ? 1 : -1;
+        setCompanies((current) => current.map((company) => company.id === companyId
+          ? { ...company, completedCount: Math.max(0, Math.min(company.problemCount, company.completedCount + countDelta)) }
+          : company));
+      }
     };
     updateProgress(completed);
     try {
@@ -122,6 +164,23 @@ export default function PlaylistsClient() {
         next.delete(key);
         return next;
       });
+    }
+  }
+
+  async function openCompanyPlaylist(company: CompanyPlaylistSummary) {
+    const playlistId = `company:${company.id}`;
+    setSelected({ id: playlistId, name: company.name, description: company.description, problems: [] });
+    setSelectedLoading(true);
+    try {
+      const response = await fetch(`/api/playlists/companies?companyId=${encodeURIComponent(company.id)}`, { cache: "no-store" });
+      const body = await response.json() as { playlist?: Playlist; error?: string };
+      if (!response.ok || !body.playlist) throw new Error(body.error || "Could not load this company playlist.");
+      setSelected((current) => current?.id === playlistId ? body.playlist! : current);
+    } catch (loadError) {
+      setSelected((current) => current?.id === playlistId ? null : current);
+      setCompaniesError(loadError instanceof Error ? loadError.message : "Could not load this company playlist.");
+    } finally {
+      setSelectedLoading(false);
     }
   }
 
@@ -185,10 +244,36 @@ export default function PlaylistsClient() {
             <h2 className="text-xl font-semibold text-white">Your playlists</h2>
             <p className="mt-2 text-sm text-white/45">Sign in to create and manage personal playlists.</p>
           </section>}
+
+          <section aria-labelledby="company-playlists-title" className="mt-12 border-t border-white/[0.08] pt-8">
+            <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+              <div>
+                <p className="page-eyebrow mb-2">Interview preparation</p>
+                <h2 id="company-playlists-title" className="text-2xl font-semibold tracking-tight text-white">Company playlists</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">Practice questions reported for specific companies. Open a list to check off questions and jump to YexCode or LeetCode.</p>
+                <a href="https://github.com/snehasishroy/leetcode-companywise-interview-questions" target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs text-violet-200/70 underline decoration-white/20 underline-offset-4 transition hover:text-violet-100">Source data · snapshot from July 12, 2026</a>
+              </div>
+              <label className="w-full sm:max-w-xs">
+                <span className="sr-only">Search companies</span>
+                <input type="search" value={companySearch} onChange={(event) => { setCompanySearch(event.target.value); setCompanyPage(1); }} placeholder="Search companies…" className="control-field w-full px-3 py-2.5 text-sm text-white placeholder:text-white/35" />
+              </label>
+            </div>
+            {companiesError && <p role="alert" className="mb-4 rounded-lg border border-rose-300/20 bg-rose-300/[0.06] px-4 py-3 text-sm text-rose-200">{companiesError}</p>}
+            {companiesLoading ? <p className="surface-panel rounded-xl px-5 py-10 text-center text-sm text-white/45">Loading company playlists…</p> : visibleCompanies.length === 0 ? <p className="surface-panel rounded-xl px-5 py-10 text-center text-sm text-white/45">No companies match “{companySearch}”.</p> : <div className="surface-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {visibleCompanies.map((company) => <CompanyPlaylistCard key={company.id} company={company} authenticated={data.authenticated} onOpen={() => void openCompanyPlaylist(company)} />)}
+            </div>}
+            {!companiesLoading && filteredCompanies.length > 0 && <div className="mt-4 flex items-center justify-between gap-3 text-xs text-white/45">
+              <span>{filteredCompanies.length} companies · Page {companyPage} of {companyPageCount}</span>
+              {companyPageCount > 1 && <div className="flex gap-2">
+                <button type="button" disabled={companyPage <= 1} onClick={() => setCompanyPage((page) => Math.max(1, page - 1))} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-white/70 transition hover:bg-white/[0.07] disabled:opacity-35">Previous</button>
+                <button type="button" disabled={companyPage >= companyPageCount} onClick={() => setCompanyPage((page) => Math.min(companyPageCount, page + 1))} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-white/70 transition hover:bg-white/[0.07] disabled:opacity-35">Next</button>
+              </div>}
+            </div>}
+          </section>
         </>
       )}
 
-      {selected && <PlaylistSheet playlist={selected} showTopics={!personal.some((playlist) => playlist.id === selected.id)} pendingProgress={pendingProgress} onClose={() => setSelected(null)} onToggleCompletion={(problem) => void toggleCompletion(selected, problem)} />}
+      {selected && <PlaylistSheet playlist={selected} loading={selectedLoading} showTopics={!selected.id.startsWith("company:") && !personal.some((playlist) => playlist.id === selected.id)} pendingProgress={pendingProgress} onClose={() => { setSelected(null); setSelectedLoading(false); }} onToggleCompletion={(problem) => void toggleCompletion(selected, problem)} />}
       {editing && <PlaylistEditor
         playlist={editing === "new" ? null : editing}
         saving={saving}
@@ -244,16 +329,46 @@ function PlaylistCard({ playlist, authenticated, onOpen, onEdit, onDelete }: {
   );
 }
 
-function PlaylistSheet({ playlist, showTopics, pendingProgress, onClose, onToggleCompletion }: {
+function CompanyPlaylistCard({ company, authenticated, onOpen }: {
+  company: CompanyPlaylistSummary;
+  authenticated: boolean;
+  onOpen: () => void;
+}) {
+  return (
+    <article className="surface-panel flex min-h-48 flex-col p-4 transition hover:border-violet-300/25 hover:bg-[#1d1d26]">
+      <button type="button" onClick={onOpen} className="flex flex-1 flex-col text-left">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-200/75">{company.problemCount} questions</span>
+        <span className="mt-2 text-lg font-semibold text-white">{company.name}</span>
+        <span className="mt-auto pt-5 text-xs text-white/45">{authenticated ? `${company.completedCount}/${company.problemCount} completed` : "Sign in to track progress"}</span>
+      </button>
+      <div className="mt-3 border-t border-white/[0.08] pt-3 text-xs text-white/35">Company interview set</div>
+    </article>
+  );
+}
+
+function PlaylistSheet({ playlist, loading, showTopics, pendingProgress, onClose, onToggleCompletion }: {
   playlist: Playlist;
+  loading: boolean;
   showTopics: boolean;
   pendingProgress: Set<string>;
   onClose: () => void;
   onToggleCompletion: (problem: PlaylistProblem) => void;
 }) {
   const stats = playlistStats(playlist);
-  const groups = useMemo(() => showTopics ? groupByTopic(playlist.problems) : [["", playlist.problems] as [string, PlaylistProblem[]]], [playlist.problems, showTopics]);
+  const isCompanyPlaylist = playlist.id.startsWith("company:");
+  const [companyProblemSearch, setCompanyProblemSearch] = useState("");
+  const [companyProblemPage, setCompanyProblemPage] = useState(1);
   const [collapsedTopics, setCollapsedTopics] = useState<Record<string, boolean>>({});
+  const filteredCompanyProblems = useMemo(() => {
+    const query = companyProblemSearch.trim().toLocaleLowerCase();
+    return playlist.problems.filter((problem) => !query || problem.title.toLocaleLowerCase().includes(query) || problem.slug.toLocaleLowerCase().includes(query));
+  }, [companyProblemSearch, playlist.problems]);
+  const companyProblemPageSize = 50;
+  const companyProblemPageCount = Math.max(1, Math.ceil(filteredCompanyProblems.length / companyProblemPageSize));
+  const visibleProblems = isCompanyPlaylist
+    ? filteredCompanyProblems.slice((companyProblemPage - 1) * companyProblemPageSize, companyProblemPage * companyProblemPageSize)
+    : playlist.problems;
+  const groups = useMemo(() => showTopics ? groupByTopic(playlist.problems) : [["", visibleProblems] as [string, PlaylistProblem[]]], [playlist.problems, showTopics, visibleProblems]);
   return (
     <div className="fixed inset-0 z-[70] grid items-start overflow-y-auto bg-black/70 p-3 pt-24 backdrop-blur-sm sm:px-5 sm:pb-5 sm:pt-24" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="playlist-sheet-title" className="flex max-h-[calc(100dvh-8rem)] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111116] shadow-2xl shadow-black/50 sm:mx-auto sm:max-w-5xl">
@@ -262,12 +377,18 @@ function PlaylistSheet({ playlist, showTopics, pendingProgress, onClose, onToggl
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-violet-300">Playlist · {playlist.problems.length} problems</p>
             <h2 id="playlist-sheet-title" className="mt-2 text-2xl font-semibold text-white">{playlist.name}</h2>
             {playlist.description && <p className="mt-2 max-w-2xl text-sm text-white/55">{playlist.description}</p>}
-            <p className="mt-3 text-xs text-white/45">{stats.completed} of {stats.total} completed</p>
+            <p className="mt-3 text-xs text-white/45">{loading ? "Loading questions…" : `${stats.completed} of ${stats.total} completed`}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close playlist" className="rounded-md border border-white/10 px-3 py-1.5 text-sm text-white/65 hover:bg-white/5">Close</button>
         </header>
         <div className="problem-panel-scrollbar min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
-          {groups.map(([topic, problems], groupIndex) => {
+          {isCompanyPlaylist && !loading && <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <label className="min-w-60 flex-1 text-xs text-white/45">Search questions
+              <input type="search" value={companyProblemSearch} onChange={(event) => { setCompanyProblemSearch(event.target.value); setCompanyProblemPage(1); }} placeholder="Search by problem title" className="control-field mt-1.5 w-full px-3 py-2.5 text-sm text-white" />
+            </label>
+            <span className="text-xs text-white/40">{filteredCompanyProblems.length} questions</span>
+          </div>}
+          {loading ? <p className="py-16 text-center text-sm text-white/45">Loading company questions…</p> : groups.map(([topic, problems], groupIndex) => {
             const isCollapsed = collapsedTopics[topic] ?? false;
             const groupId = `playlist-topic-${groupIndex}`;
             return (
@@ -303,7 +424,7 @@ function PlaylistSheet({ playlist, showTopics, pendingProgress, onClose, onToggl
                       >
                         {problem.completed && <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none"><path d="m4 10 4 4 8-8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" /></svg>}
                       </button>
-                      <span className="text-right text-xs tabular-nums text-white/35">{index + 1}.</span>
+                      <span className="text-right text-xs tabular-nums text-white/35">{(isCompanyPlaylist ? (companyProblemPage - 1) * companyProblemPageSize : 0) + index + 1}.</span>
                       <div className="min-w-0">
                         <Link href={`/problems/${problem.slug}`} className="text-sm font-medium text-sky-200 hover:text-sky-100 hover:underline">{problem.title}</Link>
                         {problem.difficulty && <div className="mt-1 text-[11px] text-white/40">{problem.difficulty}</div>}
@@ -317,7 +438,9 @@ function PlaylistSheet({ playlist, showTopics, pendingProgress, onClose, onToggl
               </section>
             );
           })}
-          {playlist.problems.length === 0 && <p className="py-12 text-center text-sm text-white/45">This playlist has no problems yet. Edit it to add some.</p>}
+          {!loading && playlist.problems.length === 0 && <p className="py-12 text-center text-sm text-white/45">This playlist has no problems yet. Edit it to add some.</p>}
+          {!loading && playlist.problems.length > 0 && isCompanyPlaylist && filteredCompanyProblems.length === 0 && <p className="py-12 text-center text-sm text-white/45">No questions match that search.</p>}
+          {!loading && isCompanyPlaylist && companyProblemPageCount > 1 && <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4 text-xs text-white/45"><span>Page {companyProblemPage} of {companyProblemPageCount}</span><div className="flex gap-2"><button type="button" disabled={companyProblemPage <= 1} onClick={() => setCompanyProblemPage((page) => Math.max(1, page - 1))} className="rounded-lg border border-white/10 px-3 py-2 transition hover:bg-white/[0.05] disabled:opacity-35">Previous</button><button type="button" disabled={companyProblemPage >= companyProblemPageCount} onClick={() => setCompanyProblemPage((page) => Math.min(companyProblemPageCount, page + 1))} className="rounded-lg border border-white/10 px-3 py-2 transition hover:bg-white/[0.05] disabled:opacity-35">Next</button></div></div>}
         </div>
       </section>
     </div>

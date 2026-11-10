@@ -2,6 +2,7 @@ import { Types } from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import { curatedPlaylists } from "@/lib/curated-playlists";
+import { companyPlaylists } from "@/lib/company-playlists";
 import Playlist from "@/models/Playlist";
 import PlaylistProgress from "@/models/PlaylistProgress";
 import { getOrSyncUser } from "@/lib/auth-user";
@@ -33,8 +34,12 @@ export async function POST(request: NextRequest) {
 
     await dbConnect();
     const curated = curatedPlaylists.find((playlist) => playlist.id === playlistId);
-    let containsProblem = curated?.problems.some((problem) => problem.slug === problemSlug) ?? false;
-    if (!curated && Types.ObjectId.isValid(playlistId)) {
+    const companyId = playlistId.startsWith("company:") ? playlistId.slice("company:".length) : "";
+    const company = companyPlaylists.find((playlist) => playlist.id === companyId);
+    let containsProblem = curated?.problems.some((problem) => problem.slug === problemSlug)
+      ?? company?.problems.some((problem) => problem.slug === problemSlug)
+      ?? false;
+    if (!curated && !company && Types.ObjectId.isValid(playlistId)) {
       const playlist = await Playlist.findOne({ _id: playlistId, userId: user._id }).select("problems.slug").lean() as unknown as { problems: Array<{ slug: string }> } | null;
       containsProblem = playlist?.problems.some((problem) => problem.slug === problemSlug) ?? false;
     }
