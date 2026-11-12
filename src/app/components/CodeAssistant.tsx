@@ -13,7 +13,7 @@ const quickPrompts = [
   { label: "Find bugs", prompt: "Review this code for likely bugs, edge cases, and incorrect assumptions. Explain each issue and suggest a fix." },
   { label: "Optimize", prompt: "Suggest practical ways to improve the time and space complexity of this code. Explain the tradeoffs." },
   { label: "Explain", prompt: "Explain how this code works, step by step, and call out the most important logic." },
-  { label: "Test cases", prompt: "Suggest useful test cases for this code, especially edge cases. Do not claim to execute the code." },
+
 ];
 
 export default function CodeAssistant({ code, language, problemTitle }: Props) {

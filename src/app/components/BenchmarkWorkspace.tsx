@@ -221,6 +221,12 @@ export default function BenchmarkWorkspace() {
                       <textarea value={testCase.expectedOutput} onChange={(event) => updateCase(testCase.key, "expectedOutput", event.target.value)} rows={4} spellCheck={false} className="problem-panel-scrollbar resize-y rounded-md border border-white/10 bg-black/40 p-2 font-mono text-xs text-white outline-none focus:border-violet-400/60" />
                     </label>
                   </div>
+                  {result?.failedTestCase?.id === index + 1 && result.failedTestCase.actualOutput !== undefined && (
+                    <div className="mt-3">
+                      <p className="mb-1 text-xs font-medium text-rose-200/80">Actual output (stdout)</p>
+                      <pre className="problem-panel-scrollbar max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md border border-rose-300/15 bg-black/40 p-2 font-mono text-xs text-rose-100">{result.failedTestCase.actualOutput || "(no output)"}</pre>
+                    </div>
+                  )}
                 </article>
               ))}
             </div>
