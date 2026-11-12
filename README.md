@@ -2,6 +2,24 @@
 
 YexCode is a LeetCode-like coding practice website for browsing problems, writing solutions, and viewing judge results. It owns the web app and reads problem records from MongoDB; problem authoring fixtures and seeding tools live in the sibling [YCProblems](../YCProblems) repository. Code is sent server-to-server to [YexJudge](../YexJudge), which executes submissions in isolated container sandboxes. YexJudge supports C, C++, and Python stdin/stdout execution plus C++ and Python Function/Class Mode. YexCode problem Run/Submit supports C++ and Python Function/Class Mode; its standalone stdin/stdout workspace supports C, C++, and Python.
 
+## Features
+
+### Problem practice
+
+Browse the problem catalog, work through curated and company playlists, and organize questions into personal playlists. Your profile tracks solved and attempted problems so you can pick up where you left off.
+
+### Coding workspace
+
+Write and run C, C++, or Python in the browser-based editor. The standalone workspace supports stdin/stdout programs, while supported problems provide Function/Class Mode for C++ and Python. Run custom test cases while developing, then submit solutions for judge results.
+
+### Judging and benchmarking
+
+Submissions run through YexJudge in isolated container sandboxes. Review verdicts and execution results, and use the benchmark workspace to compare performance across test cases.
+
+### Groq AI assistant
+
+Ask Groq to explain code, find likely bugs, suggest optimizations, or propose test cases. The assistant uses your own Groq API key, encrypted before storage. Your code and prompt are sent to Groq only when you ask; YexCode does not store the submitted code or assistant conversation.
+
 ## Requirements
 
 - Bun
@@ -35,4 +53,5 @@ For a local end-to-end Run/Submit check, start YexJudge with Docker Compose, the
 - [Local setup and MongoDB seeding](docs/setup.md)
 - [Problem data and YexJudge integration](docs/integration.md)
 - [Deployment and security notes](docs/deployment.md)
+- [Groq assistant setup](docs/groq-assistant.md)
 - [Product roadmap](plan.md)
