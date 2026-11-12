@@ -12,6 +12,7 @@ import { cpp } from "@codemirror/lang-cpp";
 import { python } from "@codemirror/lang-python";
 import SubmissionPanel from "@/app/components/SubmissionPanel";
 import { indentationScopes } from "@/app/components/indentationScopes";
+import CodeAssistant from "@/app/components/CodeAssistant";
 
 
 let CodeMirrorWrapper: typeof import("@uiw/react-codemirror").default | null = null;
@@ -109,6 +110,7 @@ type JudgeResult = {
 
 type CodeEditorProps = {
   problemSlug: string;
+  problemTitle?: string;
   initialCode: string;
 
 
@@ -125,6 +127,7 @@ const getDraftKey = (problemSlug: string, language: string) => {
 
 const CodeEditor: React.FC<CodeEditorProps> = ({
   problemSlug,
+  problemTitle,
   initialCode,
   templates = {},
   function: functionMetadata,
@@ -519,6 +522,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           </select>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          <CodeAssistant code={code} language={language} problemTitle={problemTitle} />
           <button
             onClick={handleRun}
             disabled={isRunBusy || isSubmitBusy}

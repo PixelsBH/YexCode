@@ -11,6 +11,8 @@ const policies = {
   submitCreateUser: { limit: 5, window: "1 m" },
   pollIp: { limit: 600, window: "1 m" },
   pollUser: { limit: 300, window: "1 m" },
+  groqAssistantIp: { limit: 12, window: "1 m" },
+  groqAssistantUser: { limit: 5, window: "1 m" },
 } as const;
 
 export type PolicyName = keyof typeof policies;

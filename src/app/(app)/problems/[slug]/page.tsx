@@ -26,6 +26,7 @@ export default async function ProblemPage({ params }: { params: Params }) {
       <div className="flex min-h-0 min-w-0 flex-col">
         <CodeEditor
           problemSlug={slug}
+          problemTitle={problem.title}
           initialCode={problem.templates?.cpp || "// Write your code here"}
           templates={problem.templates}
           function={problem.function}

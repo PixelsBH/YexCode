@@ -7,6 +7,7 @@ import { cpp } from "@codemirror/lang-cpp";
 import { python } from "@codemirror/lang-python";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { indentationScopes } from "@/app/components/indentationScopes";
+import CodeAssistant from "@/app/components/CodeAssistant";
 
 type Language = "c" | "cpp" | "python";
 type EditableCase = { key: number; input: string; expectedOutput: string };
@@ -182,6 +183,7 @@ export default function BenchmarkWorkspace() {
           <button type="button" onClick={() => runBenchmark(false)} disabled={isRunning || cases.length === 0} className="rounded-lg bg-violet-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50">
             {isRunning ? `${statusLabel(status)}…` : "Run tests"}
           </button>
+          <CodeAssistant code={code} language={language} />
         </div>
       </div>
 

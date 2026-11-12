@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getOrSyncUser } from "@/lib/auth-user";
 import Submission from "@/models/Submission";
 import Problem from "@/models/Problem";
+import GroqKeySettings from "@/app/components/GroqKeySettings";
 
 export default async function ProfilePage() {
   const user = await getOrSyncUser();
@@ -42,5 +43,6 @@ export default async function ProfilePage() {
         </li>)}
       </ul>}
     </section>
+    <GroqKeySettings />
   </div>;
 }

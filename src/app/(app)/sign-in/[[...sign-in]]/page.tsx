@@ -13,6 +13,8 @@ const appearance = {
   elements: {
     card: "border border-white/10 shadow-2xl shadow-black/30",
     headerTitle: "tracking-tight",
+    socialButtonsBlockButton: { backgroundColor: "#f4f4f5", borderColor: "#e4e4e7" },
+    socialButtonsBlockButtonText: { color: "#18181b" },
     formButtonPrimary: "font-semibold shadow-lg shadow-violet-950/40",
     footerActionLink: "text-violet-300 hover:text-violet-200",
   },
