@@ -54,4 +54,3 @@ For a local end-to-end Run/Submit check, start YexJudge with Docker Compose, the
 - [Problem data and YexJudge integration](docs/integration.md)
 - [Deployment and security notes](docs/deployment.md)
 - [Groq assistant setup](docs/groq-assistant.md)
-- [Product roadmap](plan.md)

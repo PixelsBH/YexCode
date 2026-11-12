@@ -6,6 +6,21 @@ import Playlist from "@/models/Playlist";
 import Problem from "@/models/Problem";
 import PlaylistProgress from "@/models/PlaylistProgress";
 import { getOrSyncUser } from "@/lib/auth-user";
+import { checkRateLimit, getClientIp, rateLimitIdentifier } from "@/lib/rate-limit";
+import { readBoundedBody } from "@/lib/request-limits.mjs";
+
+const MAX_PLAYLIST_BODY_BYTES = 64 * 1024;
+const MAX_PERSONAL_PLAYLISTS = 100;
+
+async function limitResponse(name: "playlistCreateIp" | "playlistCreateUser", identifier: string) {
+  const result = await checkRateLimit(name, identifier);
+  if (result.success) return null;
+  const retryAfter = Math.max(1, Math.ceil((result.reset - Date.now()) / 1000));
+  return NextResponse.json(
+    { error: result.unavailable ? "Request protection is temporarily unavailable." : "Too many playlist creation requests." },
+    { status: result.unavailable ? 503 : 429, headers: { "Retry-After": String(retryAfter), "Cache-Control": "no-store" } },
+  );
+}
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Invalid playlist request.";
@@ -64,13 +79,24 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getOrSyncUser();
     if (!user) return NextResponse.json({ error: "Sign in to create a playlist." }, { status: 401 });
+    const ipBlocked = await limitResponse("playlistCreateIp", rateLimitIdentifier(getClientIp(request)));
+    if (ipBlocked) return ipBlocked;
+    const userBlocked = await limitResponse("playlistCreateUser", rateLimitIdentifier(String(user._id)));
+    if (userBlocked) return userBlocked;
+
+    const rawBody = await readBoundedBody(request.body, MAX_PLAYLIST_BODY_BYTES);
+    if (rawBody === null) return NextResponse.json({ error: "Request body is too large." }, { status: 413 });
     let input: ReturnType<typeof normalizePlaylistInput>;
     try {
-      input = normalizePlaylistInput(await request.json());
+      input = normalizePlaylistInput(JSON.parse(rawBody));
     } catch (error) {
       return NextResponse.json({ error: errorMessage(error) }, { status: 400 });
     }
     await dbConnect();
+    const playlistCount = await Playlist.countDocuments({ userId: user._id });
+    if (playlistCount >= MAX_PERSONAL_PLAYLISTS) {
+      return NextResponse.json({ error: `You can have at most ${MAX_PERSONAL_PLAYLISTS} personal playlists.` }, { status: 409 });
+    }
     const playlist = await Playlist.create({ userId: user._id, ...input });
     return NextResponse.json({ id: String(playlist._id), ...input }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch {

@@ -1,6 +1,6 @@
 # Feature implementation notes
 
-Reference notes for completed and partially completed roadmap work. Keep actionable unfinished work in [`plan.md`](plan.md); this document records current behavior and implementation details.
+Reference notes for completed and partially completed work; this document records current behavior and implementation details.
 
 ## Stable judge result contract (Feature 6 — implemented)
 

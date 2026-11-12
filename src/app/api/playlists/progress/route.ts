@@ -6,6 +6,9 @@ import { companyPlaylists } from "@/lib/company-playlists";
 import Playlist from "@/models/Playlist";
 import PlaylistProgress from "@/models/PlaylistProgress";
 import { getOrSyncUser } from "@/lib/auth-user";
+import { readBoundedBody } from "@/lib/request-limits.mjs";
+
+const MAX_PROGRESS_BODY_BYTES = 4096;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -16,9 +19,11 @@ export async function POST(request: NextRequest) {
     const user = await getOrSyncUser();
     if (!user) return NextResponse.json({ error: "Sign in to save playlist progress." }, { status: 401 });
 
+    const rawBody = await readBoundedBody(request.body, MAX_PROGRESS_BODY_BYTES);
+    if (rawBody === null) return NextResponse.json({ error: "Request body is too large." }, { status: 413 });
     let body: unknown;
     try {
-      body = await request.json();
+      body = JSON.parse(rawBody);
     } catch {
       return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
     }

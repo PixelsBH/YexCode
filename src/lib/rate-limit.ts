@@ -13,6 +13,8 @@ const policies = {
   pollUser: { limit: 300, window: "1 m" },
   groqAssistantIp: { limit: 12, window: "1 m" },
   groqAssistantUser: { limit: 5, window: "1 m" },
+  playlistCreateIp: { limit: 30, window: "1 h" },
+  playlistCreateUser: { limit: 10, window: "1 h" },
 } as const;
 
 export type PolicyName = keyof typeof policies;
