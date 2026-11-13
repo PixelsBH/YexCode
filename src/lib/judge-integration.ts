@@ -6,7 +6,7 @@ import Problem from "@/models/Problem";
 import Submission from "@/models/Submission";
 import { getOrSyncUser } from "@/lib/auth-user";
 import { checkRateLimit, getClientIp, rateLimitIdentifier, type PolicyName } from "@/lib/rate-limit";
-import { ownedSubmissionFilter } from "@/lib/submission-access.mjs";
+import { isSubmissionPollingIdAllowed, ownedSubmissionFilter } from "@/lib/submission-access.mjs";
 import { MAX_REQUEST_BYTES, sourceCodeWithinLimit, readBoundedBody } from "@/lib/request-limits.mjs";
 import { normalizeBenchmarkTestCases } from "@/lib/benchmark-validation.mjs";
 import {
@@ -508,6 +508,9 @@ export async function getJudgeSubmission(request: NextRequest, id: string, opera
   const requestId = requestIdFor(request);
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
     return errorResponse("Invalid submission ID.", 400, requestId);
+  }
+  if (!isSubmissionPollingIdAllowed(id, operation)) {
+    return errorResponse("Submission not found.", 404, requestId);
   }
 
   let ownedSubmission: { _id: unknown } | null = null;

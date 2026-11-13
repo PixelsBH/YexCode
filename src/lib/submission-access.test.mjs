@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ownedSubmissionFilter } from "./submission-access.mjs";
+import { isOpaqueSubmissionId, isSubmissionPollingIdAllowed, ownedSubmissionFilter } from "./submission-access.mjs";
 
 test("submission query filters always require the authenticated database user", () => {
   assert.throws(() => ownedSubmissionFilter(undefined), /authenticated database user ID/);
@@ -30,4 +30,23 @@ test("judge correlation lookups also require the authenticated owner", () => {
     userId,
     judgeSubmissionId: "judge-id",
   });
+});
+
+test("anonymous result IDs must be opaque capability IDs, not legacy timestamps", () => {
+  assert.equal(isOpaqueSubmissionId(`sub_${"a".repeat(43)}`), true);
+  assert.equal(isOpaqueSubmissionId("1794555830832000000"), false);
+  assert.equal(isOpaqueSubmissionId("sub_short"), false);
+  assert.equal(isOpaqueSubmissionId(null), false);
+});
+
+test("anonymous run and benchmark polls reject legacy IDs but submit history can look them up", () => {
+  const capabilityId = `sub_${"a".repeat(43)}`;
+  const legacyId = "1794555830832000000";
+
+  assert.equal(isSubmissionPollingIdAllowed(capabilityId, "run"), true);
+  assert.equal(isSubmissionPollingIdAllowed(capabilityId, "benchmark"), true);
+  assert.equal(isSubmissionPollingIdAllowed(legacyId, "run"), false);
+  assert.equal(isSubmissionPollingIdAllowed(legacyId, "benchmark"), false);
+  assert.equal(isSubmissionPollingIdAllowed(legacyId, "submit"), true);
+  assert.equal(isSubmissionPollingIdAllowed(capabilityId, "unknown"), false);
 });
